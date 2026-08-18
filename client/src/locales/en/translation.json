@@ -1,0 +1,15 @@
+{
+  "welcome": "Willkommen!",
+  "loginPrompt": "Bitte registriere dich oder melde dich an:",
+  "pageNotFound": "Etwas ist schief gegangen, bitte laden sie die Seite neu.",
+  "pageReload": "Seite neu laden.",
+  "login": "Login",
+  "register": "Registrieren",
+  "landing": {
+    "title": "Willkommen beim Aufgabeneditor!",
+    "subtitle": "Bitte wählen Sie eine Option",
+    "dontHaveAccount": "abs",
+    "signUp": "Anmelden",
+    "singIn": "Anmelden"
+  }
+}

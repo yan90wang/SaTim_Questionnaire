@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "questionAnswer" ALTER COLUMN "solvedTime" SET DATA TYPE DOUBLE PRECISION;

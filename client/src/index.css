@@ -1,0 +1,53 @@
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue',
+  sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  monospace;
+}
+
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: black !important;
+}
+
+.tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.tiptap th,
+.tiptap td {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.mc-choice-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.5rem 1rem;
+  margin-right: 0.5rem;
+  vertical-align: top;
+}
+
+.mc-choice-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: pre-wrap;
+}
+
+.mc-choice-content img {
+  max-width: 100%;
+  height: auto;
+}
+math-field::part(menu-toggle) {
+  display: none;
+}

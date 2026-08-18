@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id                     Int              @id @default(autoincrement())
+  first_name             String
+  last_name              String
+  email                  String           @unique
+  password               String
+  roles                  String[]
+  createdQuestions       question[]       @relation("CreatedQuestions")
+  updatedQuestions       question[]       @relation("UpdatedQuestions")
+  surveys                survey[]         @relation("CreatedSurveys")
+  updatedSurveys         survey[]         @relation("UpdatedSurveys")
+  surveyInstances        surveyInstance[] @relation("CreatedSurveyInstances")
+  updatedSurveyInstances surveyInstance[] @relation("UpdatedSurveyInstances")
+  booklets               booklet[]        @relation("CreatedBooklets")
+
+  team_access team_access[]
+}
+
+model team {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  users           team_access[]
+  questions       question[]
+  surveys         survey[]
+  surveyInstances surveyInstance[]
+
+  teacher teacher[]
+}
+
+model team_access {
+  id Int @id @default(autoincrement())
+
+  team_id Int
+  user_id Int
+
+  team team  @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, user_id])
+}
+
+model question {
+  id             Int             @id @default(autoincrement())
+  metadata       Json
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  status         question_status
+  contentJson    Json?
+  contentHtml    String?
+  correctAnswers Json?
+
+  createdById Int
+  updatedById Int
+
+  createdBy       users             @relation("CreatedQuestions", fields: [createdById], references: [id])
+  updatedBy       users             @relation("UpdatedQuestions", fields: [updatedById], references: [id])
+  bookletQuestion bookletQuestion[]
+
+  team_id Int?
+  team    team? @relation(fields: [team_id], references: [id])
+}
+
+model bookletQuestion {
+  bookletId  Int
+  questionId Int
+  position   Int
+
+  booklet  booklet  @relation(fields: [bookletId], references: [id])
+  question question @relation(fields: [questionId], references: [id])
+
+  @@id([bookletId, questionId])
+  @@unique([bookletId, position])
+}
+
+enum question_status {
+  ACTIVE
+  LECTURE
+  FINISHED
+  DELETED
+}
+
+enum survey_status {
+  ACTIVE
+  PREPARED
+  IN_PROGRESS
+  FINISHED
+}
+
+model survey {
+  id                             Int              @id @default(autoincrement())
+  title                          String
+  description                    String?
+  createdAt                      DateTime         @default(now())
+  updatedAt                      DateTime         @updatedAt
+  createdById                    Int
+  updatedById                    Int
+  status                         survey_status    @default(IN_PROGRESS)
+  mode                           survey_mode
+  instances                      surveyInstance[]
+  booklet                        booklet[]
+  bookletMappingExcelUrl         String?
+  bookletVersion                 Int              @default(0)
+  isTwoTier                      Boolean          @default(false)
+  teacherAssigned                Boolean          @default(false)
+  knowledgeSpaceFileUrl          String?
+  probabilityDistributionFileUrl String?
+  adaptiveThreshold              Float?
+
+  createdBy users    @relation("CreatedSurveys", fields: [createdById], references: [id])
+  updatedBy users    @relation("UpdatedSurveys", fields: [updatedById], references: [id])
+  answer    answer[] @relation("BelogsToSurvey")
+
+  team_id           Int?
+  team              team?               @relation(fields: [team_id], references: [id])
+  classTestInstance classTestInstance[]
+  adaptiveAnswer    adaptiveAnswer[]
+}
+
+model surveyInstance {
+  id             Int      @id @default(autoincrement())
+  surveyId       Int
+  name           String
+  validFrom      DateTime
+  validTo        DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdById    Int
+  updatedById    Int
+  bookletVersion Int      @default(0)
+
+  survey         survey           @relation(fields: [surveyId], references: [id])
+  createdBy      users            @relation("CreatedSurveyInstances", fields: [createdById], references: [id])
+  updatedBy      users            @relation("UpdatedSurveyInstances", fields: [updatedById], references: [id])
+  answer         answer[]         @relation("BelongsToInstance")
+  adaptiveAnswer adaptiveAnswer[] @relation("BelongsToAdaptiveInstance")
+
+  team_id Int?
+  team    team? @relation(fields: [team_id], references: [id])
+}
+
+enum survey_mode {
+  DESIGN
+  ADAPTIV
+}
+
+model booklet {
+  id            Int      @id @default(autoincrement())
+  bookletId     Int
+  surveyId      Int
+  excelFileUrl  String
+  assignedCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  createdById   Int
+  version       Int      @default(0)
+
+  survey          survey            @relation(fields: [surveyId], references: [id])
+  createdBy       users             @relation("CreatedBooklets", fields: [createdById], references: [id])
+  answer          answer[]          @relation("BelongsToBooklet")
+  bookletQuestion bookletQuestion[]
+
+  @@index([surveyId])
+}
+
+model answer {
+  id               Int              @id @default(autoincrement())
+  surveyId         Int
+  instanceId       Int
+  bookletId        Int
+  userId           String
+  questionIds      Int[]
+  questionsAnswers questionAnswer[] @relation("BelongsToAnswer")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  endedAt          DateTime?
+  freeParam        String?
+
+  survey   survey         @relation("BelogsToSurvey", fields: [surveyId], references: [id])
+  instance surveyInstance @relation("BelongsToInstance", fields: [instanceId], references: [id])
+  booklet  booklet        @relation("BelongsToBooklet", fields: [bookletId], references: [id])
+
+  @@unique([surveyId, instanceId, bookletId, userId])
+  @@index([userId, instanceId])
+}
+
+model adaptiveAnswer {
+  id                Int              @id @default(autoincrement())
+  surveyId          Int
+  surveyInstanceId  Int
+  userId            String
+  questionIds       Int[]
+  questionsAnswers  questionAnswer[] @relation("AdaptiveQuestionAnswers")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  endedAt           DateTime?
+  freeParam         String?
+  adaptiveProbs     Json?
+  currentQuestionId Int?
+  knowledgeSpace    Json
+  itemColumns       Int[]
+
+  survey         survey         @relation(fields: [surveyId], references: [id])
+  surveyInstance surveyInstance @relation("BelongsToAdaptiveInstance", fields: [surveyInstanceId], references: [id])
+
+  @@unique([surveyId, surveyInstanceId, userId])
+  @@index([userId, surveyInstanceId])
+}
+
+model questionAnswer {
+  id               Int                      @id @default(autoincrement())
+  answerId         Int?
+  questionId       Int
+  answerJson       Json?
+  createdAt        DateTime                 @default(now())
+  solvedTime       Float?                   @default(0.0)
+  solvingTimeStart DateTime                 @default(now())
+  solvingTimeEnd   DateTime?
+  skipped          Boolean                  @default(false)
+  solved           Boolean                  @default(false)
+  answer           answer?                  @relation("BelongsToAnswer", fields: [answerId], references: [id])
+  sessions         questionSolvingSession[]
+  feedbackAnswer   feedbackAnswer[]
+  adaptiveAnswer   adaptiveAnswer?          @relation("AdaptiveQuestionAnswers", fields: [adaptiveAnswerId], references: [id])
+  adaptiveAnswerId Int?
+
+  @@unique([answerId, questionId])
+  @@unique([adaptiveAnswerId, questionId])
+  @@index([answerId])
+  @@index([adaptiveAnswerId])
+}
+
+model questionSolvingSession {
+  id               Int            @id @default(autoincrement())
+  questionAnswerId Int
+  startTime        DateTime
+  endTime          DateTime?
+  questionAnswer   questionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
+
+  @@index([questionAnswerId])
+}
+
+model feedbackAnswer {
+  id               Int            @id @default(autoincrement())
+  questionAnswerId Int
+  questionKey      String
+  selectedOption   String
+  createdAt        DateTime       @default(now())
+  questionAnswer   questionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
+
+  @@unique([questionAnswerId, questionKey])
+}
+
+model anonymousUser {
+  id         Int      @id @default(autoincrement())
+  externalId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model teacher {
+  id Int @id @default(autoincrement())
+
+  first_name     String
+  last_name      String
+  email          String   @unique
+  password       String
+  school_name    String
+  school_address String
+  teamId         Int
+  team           team     @relation(fields: [teamId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  classes schoolClass[]
+}
+
+model schoolClass {
+  id                Int     @id @default(autoincrement())
+  name              String
+  type              String
+  teacherId         Int
+  teacher           teacher @relation(fields: [teacherId], references: [id])
+  registrationToken String  @unique @default(uuid())
+
+  student       student[]
+  testInstances classTestInstance[]
+
+  createdAt DateTime @default(now())
+
+  @@index([teacherId])
+}
+
+model student {
+  id         Int      @id @default(autoincrement())
+  password   String
+  birthday   DateTime
+  email      String?  @unique
+  externalId String?  @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classId     Int?
+  schoolClass schoolClass? @relation(fields: [classId], references: [id])
+
+  @@index([classId])
+}
+
+model classTestInstance {
+  id          Int         @id @default(autoincrement())
+  surveyId    Int
+  survey      survey      @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  classId     Int
+  schoolClass schoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  active      Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([surveyId, classId])
+  @@index([classId])
+  @@index([surveyId])
+}

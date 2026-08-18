@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "userAnswer" ADD COLUMN     "solvingTimeEnd" TIMESTAMP(3),
+ADD COLUMN     "solvingTimeStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN "solvedTime" DROP NOT NULL,
+ALTER COLUMN "solvedTime" DROP DEFAULT;

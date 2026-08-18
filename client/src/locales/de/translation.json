@@ -1,0 +1,50 @@
+{
+  "welcome": "Willkommen!",
+  "loginPrompt": "Bitte registriere dich oder melde dich an:",
+  "pageNotFound": "Etwas ist schief gegangen, bitte laden sie die Seite neu.",
+  "pageReload": "Seite neu laden.",
+  "login": "Login",
+  "register": "Registrieren",
+  "cancel": "Abbrechen",
+  "save": "Speichern",
+  "landing": {
+    "title": "Willkommen beim Aufgabeneditor!",
+    "subtitle": "Bitte wählen Sie eine Option",
+    "noAccount": "Kein Account?",
+    "signUp": "Registrieren",
+    "signIn": "Anmelden",
+    "alreadyAccount": "Bereits registriert?"
+  },
+  "registerForm": {
+    "title": "Registrierung",
+    "subtitle": "Jetzt registrieren und direkt loslegen",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "email": "Email",
+    "password": "Passwort",
+    "passwordConfirm": "Passwort bestätigen",
+    "creating": "Account wird erstellt..",
+    "create": "Account erstellen"
+  },
+  "loginForm": {
+    "title": "Willkommen zurück",
+    "subtitle": "Melde dich hier mit deinen Daten an",
+    "email": "Email",
+    "password": "Passwort",
+    "amAnmelden": "Wir melden dich an..",
+    "anmelden": "Anmelden"
+  },
+  "editor": {
+    "text": "Freitext Antwort",
+    "choice": "Multiple Choice",
+    "single": "Single Choice",
+    "table": "Tabellen Antwort",
+    "number": "Numerische Antwort",
+    "algebra": "Algebraische Gleichung",
+    "dragDrop": "Drag and Drop",
+    "geometry": "Geometrisch",
+    "addAnswer": "Antwort Option",
+    "answerTooltip": "Antwort Möglichkeiten einfügen",
+    "create": "Aufgabe erstellen"
+  }
+}
