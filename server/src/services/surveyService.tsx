@@ -989,39 +989,63 @@ export const uploadKnowledgeSpaceService = async (
     surveyId: number,
     file: Express.Multer.File
 ) => {
-    const workbook = XLSX.read(file.buffer, {
-        type: "buffer",
-    });
+    if (!file) {throw new Error("Keine Excel-Datei hochgeladen.");}
+
+    const workbook = XLSX.read(file.buffer, {type: "buffer",});
     const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-        throw new Error("Excel-Datei enthält kein Tabellenblatt.");
-    }
+
+    if (!sheetName) {throw new Error("Excel-Datei enthält kein Tabellenblatt.");}
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) {throw new Error(`Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`);}
-    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {defval: null,});
-    if (rows.length === 0) {
-        throw new Error("Knowledge Space Excel-Datei ist leer.");
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, {header: 1, defval: null, blankrows: false,});
+    if (rows.length === 0) {throw new Error("Knowledge Space Excel-Datei ist leer.");}
+    const headerRow = rows[0];
+    if (!Array.isArray(headerRow) || headerRow.length === 0) {throw new Error("Knowledge Space Excel-Datei enthält keine Kopfzeile.");}
+    const usedColumnIndexes: number[] = [];
+    for (let col = 0; col < headerRow.length; col++) {
+        const header = headerRow[col];
+        if (header !== null && header !== undefined && String(header).trim() !== "") {
+            usedColumnIndexes.push(col);
+        }
     }
-    const firstRow = rows[0];
-    if (!firstRow) {throw new Error("Knowledge Space Excel-Datei ist leer.");}
-    const columns = Object.keys(firstRow);
-    if (columns.length < 2) {throw new Error("Knowledge Space muss mindestens eine Zustands-Spalte und eine Aufgaben-Spalte enthalten.");}
-    const stateColumn = columns[0];
-    const itemColumns = columns.slice(1);
-    const ks = rows.map((row, index) => {
-        return itemColumns.map((column) => {
-            const value = row[column];
+    if (usedColumnIndexes.length < 2) {
+        throw new Error("Knowledge Space muss mindestens eine Zustands-Spalte und eine Aufgaben-Spalte enthalten.");
+    }
 
-            if (value !== 0 && value !== 1) {
-                throw new Error(
-                    `Ungültiger Wert in Zeile ${index + 2}, Spalte "${column}". ` +
-                    `Erlaubt sind nur 0 und 1.`
-                );
-            }
+    const stateColumnIndex = usedColumnIndexes[0];
 
-            return Number(value);
+    if (stateColumnIndex === undefined) {throw new Error("Keine Zustands-Spalte gefunden.");}
+    const stateColumn = String(headerRow[stateColumnIndex]).trim();
+    const itemColumnIndexes = usedColumnIndexes.slice(1);
+    const itemColumns = itemColumnIndexes.map((index) => String(headerRow[index]).trim());
+    const ks = rows
+        .slice(1)
+        .map((row, rowIndex) => {
+            return itemColumnIndexes.map((columnIndex) => {
+                const value = row[columnIndex];
+                if (value === null || value === undefined || String(value).trim() === "") {
+                    throw new Error(`Fehlender Wert in Zeile ${rowIndex + 2}, ` + `Spalte "${itemColumns[itemColumnIndexes.indexOf(columnIndex)]}". ` + `Erlaubt sind nur 0 und 1.`);
+                }
+                const numericValue = Number(value);
+                if (numericValue !== 0 && numericValue !== 1) {
+                    throw new Error(`Ungültiger Wert in Zeile ${rowIndex + 2}, ` + `Spalte "${itemColumns[itemColumnIndexes.indexOf(columnIndex)]}". ` + `Erlaubt sind nur 0 und 1.`);
+                }
+                return numericValue;
+            });
         });
+
+    if (ks.length === 0) {throw new Error("Knowledge Space Excel-Datei enthält keine Zustände.");}
+    const numericItemColumns = itemColumns.map((column, index) => {
+        const questionId = Number(column);
+        if (!Number.isInteger(questionId)) {throw new Error(`Ungültige Aufgaben-ID in Spalte "${column}". ` + `Die Aufgaben-Spalten müssen numerische IDs enthalten.`);}
+        return questionId;
     });
+
+    const expectedLength = numericItemColumns.length;
+
+    for (let i = 0; i < ks.length; i++) {
+        if (ks[i]?.length !== expectedLength) {throw new Error(`Ungültige Knowledge-Space-Struktur in Zeile ${i + 2}.`);}
+    }
     const survey = await prisma.survey.findUnique({
         where: {
             id: surveyId,
@@ -1030,20 +1054,11 @@ export const uploadKnowledgeSpaceService = async (
             id: true,
         },
     });
-
-    if (!survey) {
-        throw new Error("Erhebung wurde nicht gefunden.");
-    }
-
-    const safeName = file.originalname
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9._-]/g, "");
-
+    if (!survey) {throw new Error("Erhebung wurde nicht gefunden.");}
+    const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
     const fileName = `${Date.now()}_${safeName}`;
-
     const filePath = `surveys/${surveyId}/knowledge-space/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
+    const {error: uploadError} = await supabase.storage
         .from("knowledge-spaces")
         .upload(filePath, file.buffer, {
             contentType:
@@ -1058,10 +1073,13 @@ export const uploadKnowledgeSpaceService = async (
             uploadError.message
         );
     }
-    const { data: publicUrlData } = supabase.storage
+
+    const {data: publicUrlData} = supabase.storage
         .from("knowledge-spaces")
         .getPublicUrl(filePath);
+
     const knowledgeSpaceFileUrl = publicUrlData.publicUrl;
+
     await prisma.survey.update({
         where: {
             id: surveyId,
@@ -1073,10 +1091,10 @@ export const uploadKnowledgeSpaceService = async (
 
     return {
         stateColumn,
-        itemColumns,
+        itemColumns: numericItemColumns,
         ks,
         numberOfStates: ks.length,
-        numberOfItems: itemColumns.length,
+        numberOfItems: numericItemColumns.length,
         knowledgeSpaceFileUrl,
     };
 };
