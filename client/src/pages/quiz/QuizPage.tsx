@@ -24,7 +24,7 @@ import Typography from "@mui/material/Typography";
 import {Alert, Button, CircularProgress, Paper, Snackbar, Stack, Tooltip} from '@mui/material';
 import {
     type Block,
-    extractAnswersFromJson,
+    extractAnswersFromJson, hasAnswer,
     type LineEquationAnswer,
     mergeGeoGebraAnswers,
     parseContentToBlocks
@@ -190,6 +190,13 @@ export default function QuizPage() {
         const editorJson = editorRef.current.getJSON();
         let extractedAnswers = extractAnswersFromJson(editorJson, parsedBlocks);
         extractedAnswers = mergeGeoGebraAnswers(extractedAnswers, geoGebraAnswers);
+        if (quiz.isAdaptive && solved) {
+            const answerComplete = hasAnswer(extractedAnswers);
+            if (!answerComplete) {
+                setSnackbar({open: true, message: "Bitte beantworten Sie die Aufgabe, bevor Sie fortfahren.", severity: "warning",});
+                return;
+            }
+        }
         if (!id) return;
         const answerDTO: AnswerDTO = {
             questionId: question.id,

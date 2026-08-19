@@ -291,3 +291,66 @@ export function extractAnswersFromJson(doc: JSONContent, blocks: Block[]): Answe
         return ans;
     });
 }
+
+export function hasAnswer(answers: Answer[]): boolean {
+    if (!Array.isArray(answers) || answers.length === 0) {
+        return false;
+    }
+    return answers.every((answer) => {
+        switch (answer.kind) {
+            case "sc":
+                return (Array.isArray(answer.value) &&
+                    answer.value.some((choice) => choice.selected === true)
+                );
+            case "mc":
+                return Array.isArray(answer.value);
+            case "freeText":
+            case "freeTextInline":
+            case "numeric":
+            case "algebra":
+            case "lineEquation":
+                return (typeof answer.value === "string" && answer.value.trim() !== "");
+            case "geoGebraPoints":
+                return (
+                    Array.isArray(answer.value) &&
+                    answer.value.length > 0 &&
+                    answer.value.some(
+                        (point) =>
+                            point.name.trim() !== "" ||
+                            Number.isFinite(point.x) &&
+                            Number.isFinite(point.y) &&
+                            (point.x !== 0 || point.y !== 0)));
+            case "geoGebraLines":
+                return (
+                    Array.isArray(answer.value) &&
+                    answer.value.length > 0 &&
+                    answer.value.some(
+                        (line) =>
+                            line.name.trim() !== "" ||
+                            line.m !== 0 ||
+                            line.c !== 0));
+            case "geoGebraSlope": {
+                const slope = answer.value;
+                if (!slope) {return false;}
+                const hasLine1 =
+                    slope.line1.trim() !== "" ||
+                    slope.point1Line1.name.trim() !== "" ||
+                    slope.point2Line1.name.trim() !== "" ||
+                    slope.point1Line1.x !== 0 ||
+                    slope.point1Line1.y !== 0 ||
+                    slope.point2Line1.x !== 0 ||
+                    slope.point2Line1.y !== 0;
+                const hasLine2 =
+                    slope.line2.trim() !== "" ||
+                    slope.point1Line2.name.trim() !== "" ||
+                    slope.point2Line2.name.trim() !== "" ||
+                    slope.point1Line2.x !== 0 ||
+                    slope.point1Line2.y !== 0 ||
+                    slope.point2Line2.x !== 0 ||
+                    slope.point2Line2.y !== 0;
+                return hasLine1 && hasLine2;}
+            default:
+                return false;
+        }
+    });
+}
