@@ -1086,6 +1086,7 @@ export const uploadKnowledgeSpaceService = async (
         },
         data: {
             knowledgeSpaceFileUrl,
+            ksQuestionIds: numericItemColumns,
         },
     });
 

@@ -77,11 +77,32 @@ export const findQuestionById = async (id: number, userId: number): Promise<Ques
     });
 
     if (!result) return null;
-
-    const appearsInBooklet = result.bookletQuestion.length > 0;
-    const isFinished = result.status === "FINISHED";
-    const isEditable = true;
-  // TODO enable again  const isEditable = !(appearsInBooklet && isFinished);
+    const now = new Date();
+    const activeBookletSurveyInstances = await prisma.surveyInstance.findMany({
+        where: {
+            validFrom: {lte: now,},
+            validTo: {gte: now,},
+            survey: {
+                booklet: {
+                    some: {
+                        bookletQuestion: {
+                            some: {questionId: id,},
+                        },
+                    },
+                },
+            },
+        },
+        select: {id: true, name: true, surveyId: true, validFrom: true, validTo: true,},
+    });
+    const activeAdaptiveSurveyInstances = await prisma.surveyInstance.findMany({
+        where: {
+            validFrom: {lte: new Date(),},
+            validTo: {gte: new Date(),},
+            survey: {ksQuestionIds: {has: id},},
+        },
+        select: {id: true, name: true, surveyId: true, validFrom: true, validTo: true,},
+    });
+    const isEditable = (activeBookletSurveyInstances.length === 0) && (activeAdaptiveSurveyInstances.length === 0);
     const { bookletQuestion, ...questionData } = result;
 
     return {

@@ -46,8 +46,8 @@ export default function QuestionLayout({children, question}: QuestionLayoutProps
                 <Box sx={{ mb: 4 }}>
                     {question && !question.isEditable && (
                         <Alert severity="warning" sx={{ mb: 3 }}>
-                            Diese Frage kann nicht mehr bearbeitet werden,
-                            da sie bereits in einem Booklet verwendet wird und abgeschlossen ist.
+                            Diese Frage kann aktuell nicht bearbeitet werden,
+                            da sie in einer aktiven Erhebung enthalten ist. Bitte warten Sie auf den Ablauf der Erhebung.
                         </Alert>
                     )}
                     <Stepper activeStep={activeStep} alternativeLabel>
