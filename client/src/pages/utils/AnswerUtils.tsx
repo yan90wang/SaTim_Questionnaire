@@ -354,3 +354,8 @@ export function hasAnswer(answers: Answer[]): boolean {
         }
     });
 }
+
+export function getAnswerTypes(contentJson: JSONContent): string[] {
+    const blocks = parseContentToBlocks(contentJson);
+    return [...new Set(blocks.map((block) => block.kind))];
+}

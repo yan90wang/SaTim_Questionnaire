@@ -14,6 +14,7 @@ import {type FullUser, getUserById} from "../services/UserService.tsx";
 import CloseIcon from "@mui/icons-material/Close";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import {Preview} from "../components/Editor/Preview.tsx";
+import {getAnswerTypes} from "./utils/AnswerUtils.tsx";
 
 type QuestionRow = {
     id: number;
@@ -23,6 +24,7 @@ type QuestionRow = {
         label: string;
         value: string;
     }[];
+    contentJson?: any;
     createdBy?: { id: number, first_name: string, last_name: string, email: string };
     updatedBy?: { id: number, first_name: string, last_name: string, email: string };
 };
@@ -45,6 +47,7 @@ export default function QuestionsTablePage() {
     const [filterCreatedBy, setFilterCreatedBy] = useState<string>("");
     const [filterUpdatedBy, setFilterUpdatedBy] = useState<string>("");
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [filterAnswerType, setFilterAnswerType] = useState<string>("");
 
     const transformedRows = rows.map((row) => {
         const flatRow: Record<string, any> = {
@@ -54,6 +57,7 @@ export default function QuestionsTablePage() {
                 row.createdBy?.first_name + " " + row.createdBy?.last_name,
             updatedBy:
                 row.updatedBy?.first_name + " " + row.updatedBy?.last_name,
+            answerTypes: getAnswerTypes(row.contentJson),
         };
 
         row.metadata.forEach((meta: any) => {
@@ -139,12 +143,14 @@ export default function QuestionsTablePage() {
                 statusCode = "";
         }
         const matchesStatus = !filterStatus || row.status === statusCode;
+        const matchesAnswerType = filterAnswerType ? row.answerTypes?.includes(filterAnswerType) : true;
         return (
             matchesId &&
             matchesTitle &&
             matchesCreatedBy &&
             matchesUpdatedBy &&
-            matchesStatus
+            matchesStatus &&
+            matchesAnswerType
         );
     });
 
@@ -247,6 +253,25 @@ export default function QuestionsTablePage() {
                             <MenuItem value="Gelöscht">Gelöscht</MenuItem>
                             <MenuItem value="Lektorat">Lektorat</MenuItem>
                             <MenuItem value="Abgeschlossen">Abgeschlossen</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel>Antworttyp</InputLabel>
+                        <Select
+                            value={filterAnswerType}
+                            label="Antworttyp"
+                            onChange={(e) => setFilterAnswerType(e.target.value)}>
+                            <MenuItem value="">Alle</MenuItem>
+                            <MenuItem value="sc">Single Choice</MenuItem>
+                            <MenuItem value="mc">Multiple Choice</MenuItem>
+                            <MenuItem value="freeText">Freitext</MenuItem>
+                            <MenuItem value="freeTextInline">Freitext Inline</MenuItem>
+                            <MenuItem value="numeric">Numerisch</MenuItem>
+                            <MenuItem value="algebra">Algebra</MenuItem>
+                            <MenuItem value="lineEquation">Lineare Gleichung</MenuItem>
+                            <MenuItem value="geoGebraPoints">GeoGebra Punkte</MenuItem>
+                            <MenuItem value="geoGebraLines">GeoGebra Geraden</MenuItem>
+                            <MenuItem value="geoGebraSlope">GeoGebra Steigung</MenuItem>
                         </Select>
                     </FormControl>
                 </Box>
