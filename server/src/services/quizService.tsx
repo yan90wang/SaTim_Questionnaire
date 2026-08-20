@@ -313,6 +313,7 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
             survey: {
                 select: {
                     mode: true,
+                    betaEtaFileUrl: true,
                 },
             },
         },
@@ -353,7 +354,10 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
         const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
         const itemIndex = itemColumns.indexOf(questionId) + 1;
         if (itemIndex <= 0) {throw new Error(`Question ID ${questionId} not found in knowledge-space itemColumns`);}
-        const bayesianResult = await bayesianUpdate(probs, ks, 0, 0, itemIndex, result);
+
+        if (!surveyInstance.survey.betaEtaFileUrl) {throw new Error("BETA_ETA_FILE_NOT_FOUND");}
+        const { beta, eta } = await fetchBetaEta(surveyInstance.survey.betaEtaFileUrl, itemColumns);
+        const bayesianResult = await bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
         await prisma.adaptiveAnswer.update({
             where: {
                 id: adaptiveAnswer.id,
@@ -732,4 +736,77 @@ async function fetchProbabilityDistribution(
     }
 
     return probabilities.map(probability => probability / sum);
+}
+
+
+
+async function fetchBetaEta(
+    betaEtaFileUrl: string,
+    itemColumns: number[]
+): Promise<{
+    beta: number[];
+    eta: number[];
+}> {
+    const response = await fetch(betaEtaFileUrl);
+
+    if (!response.ok) {
+        throw new Error(`Beta/Eta-Datei konnte nicht geladen werden: ${response.status} ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(Buffer.from(arrayBuffer), {type: "buffer",});
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+        throw new Error("BETA_ETA_FILE_HAS_NO_SHEET");
+    }
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) {
+        throw new Error("BETA_ETA_FILE_HAS_NO_worksheet");
+    }
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: null });
+    if (rows.length === 0) {
+        throw new Error("BETA_ETA_FILE_IS_EMPTY");
+    }
+
+    const betaEtaByItem = new Map<number, { beta: number; eta: number; }>();
+
+    for (const row of rows) {
+        const itemId = Number(row.itemId);
+        const beta = Number(row.beta);
+        const eta = Number(row.eta);
+
+        if (!Number.isInteger(itemId)) {
+            throw new Error(`INVALID_ITEM_ID_IN_BETA_ETA_FILE: ${row.itemId}`);
+        }
+
+        if (!Number.isFinite(beta)) {
+            throw new Error(`INVALID_BETA_FOR_ITEM: ${itemId}`);
+        }
+
+        if (!Number.isFinite(eta)) {
+            throw new Error(`INVALID_ETA_FOR_ITEM: ${itemId}`);
+        }
+
+        if (betaEtaByItem.has(itemId)) {
+            throw new Error(`DUPLICATE_ITEM_ID_IN_BETA_ETA_FILE: ${itemId}`);
+        }
+        betaEtaByItem.set(itemId, { beta, eta });
+    }
+
+    const missingIds = itemColumns.filter(itemId => !betaEtaByItem.has(itemId));
+
+    if (missingIds.length > 0) {throw new Error(`BETA_ETA_ITEMS_MISSING: ${missingIds.join(", ")}`);}
+    const expectedIds = new Set(itemColumns);
+    const extraIds = Array.from(betaEtaByItem.keys()).filter(itemId => !expectedIds.has(itemId));
+
+    if (extraIds.length > 0) {throw new Error(`BETA_ETA_ITEMS_UNKNOWN: ${extraIds.join(", ")}`);}
+
+    const beta = itemColumns.map(itemId => betaEtaByItem.get(itemId)!.beta);
+
+    const eta = itemColumns.map(itemId => betaEtaByItem.get(itemId)!.eta);
+
+    return {
+        beta,
+        eta,
+    };
 }

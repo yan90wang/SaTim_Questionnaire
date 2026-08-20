@@ -432,3 +432,29 @@ export const uploadProbabilityDistribution = async (
 
     return response.json();
 };
+
+export const uploadBetaEta = async (
+    surveyId: string,
+    file: File
+) => {
+    const formData = new FormData();
+    formData.append("betaEta", file);
+
+    const response = await fetch(
+        `${API_BASE}/api/survey/${surveyId}/beta-eta`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
+            },
+            body: formData,
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message ?? "Fehler beim Hochladen der Beta-/Eta-Datei.");
+    }
+
+    return response.json();
+};

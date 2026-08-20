@@ -116,6 +116,7 @@ model survey {
   teacherAssigned                Boolean          @default(false)
   knowledgeSpaceFileUrl          String?
   probabilityDistributionFileUrl String?
+  betaEtaFileUrl                 String?
   adaptiveThreshold              Float?
   ksQuestionIds                  Int[]            @default([])
 

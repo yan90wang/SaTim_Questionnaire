@@ -27,6 +27,7 @@ import {
     getSurveyBooklets,
     getSurveyById,
     updateSurvey,
+    uploadBetaEta,
     uploadKnowledgeSpace,
     uploadProbabilityDistribution,
     uploadSurveyExcels
@@ -69,6 +70,7 @@ interface SurveyDetail {
     knowledgeSpaceFileUrl?: string | null;
     probabilityDistributionFileUrl?: string | null;
     adaptiveThreshold?: number | null;
+    betaEtaFileUrl?: string | null;
 }
 
 const statusLabels: Record<SurveyDetail["status"], string> = {
@@ -106,6 +108,8 @@ const SurveyUpdatePage = () => {
     const [uploadingKnowledgeSpace, setUploadingKnowledgeSpace] = useState(false);
     const [probabilityDistributionFile, setProbabilityDistributionFile] = useState<File | null>(null);
     const [uploadingProbabilityDistribution, setUploadingProbabilityDistribution] = useState(false);
+    const [betaEtaFile, setBetaEtaFile] = useState<File | null>(null);
+    const [uploadingBetaEta, setUploadingBetaEta] = useState(false);
 
     useEffect(() => {
         const fetchSurvey = async () => {
@@ -133,7 +137,8 @@ const SurveyUpdatePage = () => {
                     teacherAssigned: data.teacherAssigned,
                     knowledgeSpaceFileUrl: data.knowledgeSpaceFileUrl ?? null,
                     probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
-                    adaptiveThreshold: data.adaptiveThreshold ?? null
+                    adaptiveThreshold: data.adaptiveThreshold ?? null,
+                    betaEtaFileUrl: data.betaEtaFileUrl ?? null
                 });
             } catch (err) {
                 console.error("Failed to fetch survey:", err);
@@ -457,6 +462,30 @@ const SurveyUpdatePage = () => {
         }
     };
 
+    const handleBetaEtaUpload = async () => {
+        if (!survey || !betaEtaFile) {return;}
+        setUploadingBetaEta(true);
+        try {
+            const result = await uploadBetaEta(survey.id.toString(), betaEtaFile);
+            setSurvey((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    betaEtaFileUrl:
+                        result?.betaEtaFileUrl ??
+                        prev.betaEtaFileUrl,
+                };
+            });
+            setSnackbar({open: true, message: "Beta-/Eta-Datei erfolgreich hochgeladen.", severity: "success",});
+            setBetaEtaFile(null);
+        } catch (err: any) {
+            console.error("Beta/Eta upload failed:", err);
+            setSnackbar({open: true, message: err?.message ?? "Fehler beim Hochladen der Beta-/Eta-Datei.", severity: "error",});
+        } finally {
+            setUploadingBetaEta(false);
+        }
+    };
+
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
@@ -577,7 +606,7 @@ const SurveyUpdatePage = () => {
                             <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
                                 <Box sx={{ minWidth: 0 }}>
                                     <Typography variant="body2" fontWeight="bold" noWrap>
-                                        {knowledgeSpaceFile ? knowledgeSpaceFile.name : "Knowledge Space Excel"}
+                                        {knowledgeSpaceFile?.name}
                                     </Typography>
 
                                     {survey.knowledgeSpaceFileUrl && !knowledgeSpaceFile && (
@@ -656,8 +685,7 @@ const SurveyUpdatePage = () => {
 
                                 {(probabilityDistributionFile ||
                                     survey.probabilityDistributionFileUrl) && (
-                                    <Box
-                                        sx={{
+                                    <Box sx={{
                                             mt: 2,
                                             p: 1.5,
                                             borderRadius: 1,
@@ -666,25 +694,15 @@ const SurveyUpdatePage = () => {
                                             alignItems: "center",
                                             justifyContent: "space-between",
                                             gap: 2,
-                                        }}
-                                    >
+                                        }}>
                                         <Box sx={{ minWidth: 0 }}>
-                                            <Typography
-                                                variant="body2"
-                                                fontWeight="bold"
-                                                noWrap
-                                            >
-                                                {probabilityDistributionFile
-                                                    ? probabilityDistributionFile.name
-                                                    : "Probability Distribution Excel"}
+                                            <Typography variant="body2" fontWeight="bold" noWrap>
+                                                {probabilityDistributionFile?.name}
                                             </Typography>
 
                                             {survey.probabilityDistributionFileUrl &&
                                                 !probabilityDistributionFile && (
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="text.secondary"
-                                                    >
+                                                    <Typography variant="caption" color="text.secondary">
                                                         Bereits hochgeladen
                                                     </Typography>
                                                 )}
@@ -698,14 +716,8 @@ const SurveyUpdatePage = () => {
                                                 </Typography>
                                             )}
                                         </Box>
-
                                         {probabilityDistributionFile && (
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                onClick={handleProbabilityDistributionUpload}
-                                                disabled={uploadingProbabilityDistribution}
-                                            >
+                                            <Button size="small" variant="contained" onClick={handleProbabilityDistributionUpload} disabled={uploadingProbabilityDistribution}>
                                                 {uploadingProbabilityDistribution
                                                     ? "Hochladen..."
                                                     : "Speichern"}
@@ -715,6 +727,56 @@ const SurveyUpdatePage = () => {
                                 )}
                             </Box>
                             <Divider sx={{ my: 3 }} />
+                            <Box>
+                                <Typography variant="h5">
+                                    Beta-/Eta-Werte
+                                </Typography>
+
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                    Excel-Datei mit den Beta- und Eta-Werten für die einzelnen Aufgaben.
+                                </Typography>
+
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                    <Button variant="outlined" component="label" startIcon={<UploadFile />} disabled={uploadingBetaEta}>
+                                        {uploadingBetaEta
+                                            ? "Hochladen..."
+                                            : survey.betaEtaFileUrl || betaEtaFile
+                                                ? "Ersetzen"
+                                                : "Excel hochladen"}
+                                        <input hidden type="file" accept=".xlsx,.xls" onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {setBetaEtaFile(file);}
+                                                e.target.value = "";
+                                            }}
+                                        />
+                                    </Button>
+                                    {survey.betaEtaFileUrl && (
+                                        <Button variant="outlined" startIcon={<Download />} component="a" href={survey.betaEtaFileUrl} target="_blank" rel="noopener noreferrer">
+                                            Beta-/Eta Excel herunterladen
+                                        </Button>
+                                    )}
+                                </Box>
+
+                                {(betaEtaFile || survey.betaEtaFileUrl) && (
+                                    <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
+                                        <Box sx={{ minWidth: 0 }}>
+                                            <Typography variant="body2" fontWeight="bold" noWrap>
+                                                {betaEtaFile?.name}
+                                            </Typography>
+
+                                            <Typography variant="caption" color="text.secondary">
+                                                Bereits hochgeladen
+                                            </Typography>
+                                        </Box>
+
+                                        <Button size="small" variant="contained" onClick={handleBetaEtaUpload} disabled={uploadingBetaEta}>
+                                            {uploadingBetaEta ? "Hochladen..." : "Speichern"}
+                                        </Button>
+                                    </Box>
+                                )}
+                            </Box>
+                            <Divider sx={{ my: 3 }} />
+
                             <Box>
                                 <Typography variant="h5">
                                     Abbruch Threshold

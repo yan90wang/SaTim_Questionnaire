@@ -13,7 +13,7 @@ import {
     getSurveyInstances,
     processSurveyExcels, setSurveyTeacherAssignableService,
     updateSurveyById,
-    updateSurveyInstanceById, uploadKnowledgeSpaceService, uploadProbabilityService,
+    updateSurveyInstanceById, uploadBetaEtaService, uploadKnowledgeSpaceService, uploadProbabilityService,
 } from "../services/surveyService.js";
 import fs from "fs";
 /**
@@ -389,5 +389,21 @@ export const uploadProbabilityDistribution = async (
     } catch (error: any) {
         console.error("Probability distribution upload error:", error);
         return res.status(400).json({message: error?.message ?? "Wahrscheinlichkeitsverteilung konnte nicht verarbeitet werden.",});
+    }
+};
+
+export const uploadBetaEta = async (req: Request, res: Response) => {
+    try {
+        const surveyId = Number(req.params.surveyId);
+
+        if (!surveyId || Number.isNaN(surveyId)) {return res.status(400).json({message: "Ungültige Survey ID.",});}
+        if (!req.file) {return res.status(400).json({message: "Keine Excel-Datei hochgeladen.",});}
+
+        const result = await uploadBetaEtaService(surveyId, req.file);
+        return res.status(200).json({message: "Beta-Eta-Datei erfolgreich hochgeladen.", ...result,});
+
+    } catch (error: any) {
+        console.error("Beta-Eta upload error:", error);
+        return res.status(400).json({message: error?.message ?? "Beta-Eta-Datei konnte nicht verarbeitet werden.",});
     }
 };

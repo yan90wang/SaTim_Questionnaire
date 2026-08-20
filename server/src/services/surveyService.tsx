@@ -1068,10 +1068,7 @@ export const uploadKnowledgeSpaceService = async (
         });
 
     if (uploadError) {
-        throw new Error(
-            "Knowledge Space konnte nicht in Supabase gespeichert werden: " +
-            uploadError.message
-        );
+        throw new Error("Knowledge Space konnte nicht in Supabase gespeichert werden: " + uploadError.message);
     }
 
     const {data: publicUrlData} = supabase.storage
@@ -1191,5 +1188,105 @@ export const uploadProbabilityService = async (
         probabilities,
         numberOfEntries: probabilities.length,
         probabilityFileUrl,
+    };
+};
+
+export const uploadBetaEtaService = async (
+    surveyId: number,
+    file: Express.Multer.File
+) => {
+    if (!file) {throw new Error("Keine Excel-Datei hochgeladen.");}
+    if (!surveyId || Number.isNaN(surveyId)) {throw new Error("Ungültige Survey ID.");}
+    const survey = await prisma.survey.findUnique({
+        where: {
+            id: surveyId,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!survey) {throw new Error("Erhebung wurde nicht gefunden.");}
+    const workbook = XLSX.read(file.buffer, {type: "buffer",});
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {throw new Error("Excel-Datei enthält kein Tabellenblatt.");}
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {throw new Error(         `Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`     );}
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(
+        sheet,
+        {
+            defval: null,
+        }
+    );
+    if (rows.length === 0) {throw new Error("Beta-Eta Excel-Datei ist leer.");}
+    const firstRow = rows[0];
+    if (!firstRow) {throw new Error("Beta-Eta Excel-Datei ist leer.");}
+    const columns = Object.keys(firstRow);
+    if (columns.length < 3) {throw new Error("Beta-Eta Excel muss mindestens drei Spalten enthalten: ID, Beta und Eta.");}
+
+    const idColumn = columns[0];
+    const betaColumn = columns[1];
+    const etaColumn = columns[2];
+
+    if (!idColumn || !betaColumn || !etaColumn) {throw new Error("Beta-Eta Excel benötigt ID-, Beta- und Eta-Spalten.");}
+    const betaEta = rows.map((row, index) => {
+        const id = row[idColumn];
+        const beta = row[betaColumn];
+        const eta = row[etaColumn];
+
+        if (id === null || id === undefined || id === "") {throw new Error(`Fehlende ID in Zeile ${index + 2}.`         );}
+        if (beta === null || beta === undefined || beta === "") {throw new Error(`Fehlendes Beta in Zeile ${index + 2}.`);}
+        if (eta === null || eta === undefined || eta === "") {throw new Error(`Fehlendes Eta in Zeile ${index + 2}.`);}
+
+        const numericBeta = Number(beta);
+        const numericEta = Number(eta);
+        if (!Number.isFinite(numericBeta)) {
+            throw new Error(`Ungültiger Beta-Wert in Zeile ${index + 2}: "${beta}".`);
+        }
+        if (!Number.isFinite(numericEta)) {
+            throw new Error(`Ungültiger Eta-Wert in Zeile ${index + 2}: "${eta}".`);
+        }
+        return {
+            id,
+            beta: numericBeta,
+            eta: numericEta,
+        };
+    });
+    const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
+    const fileName = `${Date.now()}_${safeName}`;
+    const filePath = `surveys/${surveyId}/beta-eta/${fileName}`;
+    const { error: uploadError } =
+        await supabase.storage
+            .from("beta-eta")
+            .upload(
+                filePath,
+                file.buffer,
+                {
+                    contentType: file.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    upsert: false,
+                }
+            );
+
+    if (uploadError) {
+        throw new Error("Beta-Eta Excel konnte nicht in Supabase gespeichert werden: " + uploadError.message);
+    }
+    const { data: publicUrlData } = supabase.storage.from("beta-eta").getPublicUrl(filePath);
+    const betaEtaFileUrl = publicUrlData.publicUrl;
+    await prisma.survey.update({
+        where: {
+            id: surveyId,
+        },
+        data: {
+            betaEtaFileUrl,
+        },
+    });
+
+    return {
+        idColumn,
+        betaColumn,
+        etaColumn,
+        betaEta,
+        numberOfEntries: betaEta.length,
+        betaEtaFileUrl,
     };
 };
