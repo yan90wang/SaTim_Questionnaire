@@ -26,7 +26,7 @@ export const sendUnder14RegistrationEmail = async ({
 
     await transporter.sendMail({
         from: process.env.EMAIL_FROM,
-        to: ["ywphsg@gmail.com", teacherEmail],
+        to: ["peter.steiner@phsg.ch", teacherEmail],
         subject: "Registrierung eines Schülers unter 14 Jahren",
         text: `
 Guten Tag ${teacherFirstName} ${teacherLastName},

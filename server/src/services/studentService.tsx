@@ -224,3 +224,31 @@ export const requestUnder14RegistrationService = async ({registrationToken,}: Un
         success: true,
     };
 };
+
+export const getStudentWithPasswordService = async (
+    studentId: number
+) => {
+    return prisma.student.findUnique({
+        where: {
+            id: studentId,
+        },
+        select: {
+            id: true,
+            password: true,
+        },
+    });
+};
+
+export const changeStudentPasswordService = async (
+    studentId: number,
+    hashedPassword: string
+) => {
+    return prisma.student.update({
+        where: {
+            id: studentId,
+        },
+        data: {
+            password: hashedPassword,
+        },
+    });
+};

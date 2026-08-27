@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import {
     getStudentsService,
     registerStudentService,
-    loginStudentService, getStudentService, getAssignedTestsService, requestUnder14RegistrationService,
+    loginStudentService,
+    getStudentService,
+    getAssignedTestsService,
+    requestUnder14RegistrationService,
+    getStudentWithPasswordService, changeStudentPasswordService,
 } from "../services/studentService.js";
 
 import bcrypt from "bcrypt";
@@ -26,15 +30,8 @@ export const getStudents = async (
 ) => {
     try {
         const classId = Number(req.params.classId);
-
-        if (Number.isNaN(classId)) {
-            return res.status(400).json({
-                message: "Invalid class id",
-            });
-        }
-
+        if (Number.isNaN(classId)) {return res.status(400).json({message: "Invalid class id",});}
         const students = await getStudentsService(classId);
-
         res.json(students);
     } catch (err) {
         console.error(err);
@@ -215,5 +212,32 @@ export const requestUnder14Registration = async (
         console.error("Under-14 registration request failed:", err);
         return res.status(500).json({message: "Die Anfrage konnte nicht verarbeitet werden.",
         });
+    }
+};
+
+interface ChangePasswordBody {oldPassword: string;newPassword: string;}
+
+export const changeStudentPassword = async (
+    req: Request<{}, {}, ChangePasswordBody>,
+    res: Response
+) => {
+    try {
+        const studentId = req.studentId;
+        const {oldPassword, newPassword} = req.body;
+        if (!studentId) {return res.status(401).json({message: "Unauthorized",});}
+        if (!oldPassword || !newPassword) {return res.status(400).json({message: "Altes und neues Passwort sind erforderlich.",});}
+        if (newPassword.length < 6) {return res.status(400).json({message: "Das neue Passwort muss mindestens 6 Zeichen lang sein.",});}
+        const student = await getStudentWithPasswordService(studentId);
+
+        if (!student) {return res.status(404).json({message: "Student not found",});}
+        const passwordMatches = await bcrypt.compare(oldPassword, student.password);
+        if (!passwordMatches) {return res.status(400).json({message: "Das alte Passwort ist nicht korrekt.",});}
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await changeStudentPasswordService(studentId, hashedPassword);
+        return res.json({message: "Passwort wurde erfolgreich geändert.",});
+
+    } catch (err) {
+        console.error("Failed to change student password:", err);
+        return res.status(500).json({message: "Passwort konnte nicht geändert werden.",});
     }
 };

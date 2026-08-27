@@ -177,3 +177,27 @@ export const requestUnder14Registration = async (data: {
 
     return response.json();
 };
+
+export const changeStudentPassword = async (
+    oldPassword: string,
+    newPassword: string
+) => {
+    const response = await studentAuthFetch(
+        `${API_URL}/api/student/change-password`,
+        {
+            method: "PUT",
+            headers: {"Content-Type": "application/json",},
+            body: JSON.stringify({oldPassword, newPassword,}),
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+
+        throw new Error(
+            error.message || "Passwort konnte nicht geändert werden."
+        );
+    }
+
+    return response.json();
+};
