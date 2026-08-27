@@ -66,6 +66,7 @@ export const MathInput: React.FC<MathInputProps> = ({ value, onChange, width = 3
         <Box>
             {/* @ts-ignore */}
             <math-field
+                class="mathfield-input"
                 ref={mathfieldRef}
                 style={{width, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', fontSize: '1rem',}}
                 virtual-keyboard-mode="manual"

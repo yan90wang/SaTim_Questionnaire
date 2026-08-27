@@ -70,6 +70,7 @@ export const AlgebraAnswerComponent: React.FC<NodeViewProps> = ({ node, updateAt
                 {/*// @ts-ignore*/}
                 <math-field
                     ref={mathfieldRef}
+                    class="mathfield-input"
                     id={node.attrs.id}
                     style={{width: 380, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', fontSize: '1rem',}}
                     virtual-keyboard-mode="manual"
@@ -81,6 +82,7 @@ export const AlgebraAnswerComponent: React.FC<NodeViewProps> = ({ node, updateAt
                             <span>Interpretiert als: </span>
                             {/*// @ts-ignore*/}
                             <math-field
+                                class="mathfield-input"
                                 read-only
                                 value={interpretation.value}
                                 style={{ fontSize: "0.85rem", minWidth: 100 }}

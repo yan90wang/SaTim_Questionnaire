@@ -62,6 +62,7 @@ export const LineEquationAnswerComponent: React.FC<NodeViewProps> = ({ node, upd
                 <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
                     {/*// @ts-ignore*/}
                     <math-field
+                        class="mathfield-input"
                         ref={mathfieldRef}
                         id={node.attrs.id}
                         style={{width: 380, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', fontSize: '1rem',}}
@@ -75,6 +76,7 @@ export const LineEquationAnswerComponent: React.FC<NodeViewProps> = ({ node, upd
                                 {/*// @ts-ignore*/}
                                 <math-field
                                     read-only
+                                    class="mathfield-input"
                                     value={interpretation.value}
                                     style={{ fontSize: "0.85rem", minWidth: 100 }}
                                 />                                   </>
