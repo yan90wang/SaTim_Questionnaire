@@ -9,6 +9,8 @@ interface RegisterStudentInput {
     password: string;
     birthday: string;
     registrationToken: string;
+    privacyAccepted: boolean;
+    dataProcessingAccepted: boolean;
 }
 
 export const getStudentsService = async (
@@ -31,7 +33,10 @@ export const getStudentsService = async (
     });
 };
 
-export const registerStudentService = async ({email, password, birthday, registrationToken,}: RegisterStudentInput) => {
+export const registerStudentService = async ({email, password, birthday, registrationToken, privacyAccepted, dataProcessingAccepted}: RegisterStudentInput) => {
+    if (!privacyAccepted || !dataProcessingAccepted) {
+        throw new Error("Consent required");
+    }
 
     const existing = await prisma.student.findFirst({
         where: {
@@ -57,6 +62,7 @@ export const registerStudentService = async ({email, password, birthday, registr
         password,
         saltRounds
     );
+    const now = new Date();
 
     return prisma.student.create({
         data: {
@@ -64,6 +70,8 @@ export const registerStudentService = async ({email, password, birthday, registr
             email,
             password: hashedPassword,
             classId: schoolClass.id,
+            privacyAcceptedAt: now,
+            dataProcessingAcceptedAt: now,
         },
         select: {
             id: true,

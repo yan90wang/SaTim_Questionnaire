@@ -237,7 +237,7 @@ const DashboardPage = () => {
                     <form onSubmit={handleCreateSurvey}>
                         <DialogContent sx={{ pt: 0 }}>
                             <TextField label="Titel" fullWidth required margin="normal" value={newSurvey.title} onChange={(e) => setNewSurvey({ ...newSurvey, title: e.target.value })}/>
-                            <TextField label="Beschreibung" fullWidth required multiline rows={4} margin="normal" value={newSurvey.description} onChange={(e) => setNewSurvey({ ...newSurvey, description: e.target.value })}/>
+                            <TextField label="Beschreibung (Achtung! Ist für Lehrpersonen sichtbar)" fullWidth required multiline rows={4} margin="normal" value={newSurvey.description} onChange={(e) => setNewSurvey({ ...newSurvey, description: e.target.value })}/>
                             <Typography variant="subtitle1" gutterBottom>
                                 Modus
                             </Typography>

@@ -305,11 +305,13 @@ model schoolClass {
 }
 
 model student {
-  id         Int      @id @default(autoincrement())
-  password   String
-  birthday   DateTime
-  email      String?  @unique
-  externalId String?  @unique
+  id                       Int       @id @default(autoincrement())
+  password                 String
+  birthday                 DateTime
+  email                    String?   @unique
+  externalId               String?   @unique
+  privacyAcceptedAt        DateTime?
+  dataProcessingAcceptedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

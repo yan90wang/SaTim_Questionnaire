@@ -85,10 +85,6 @@ const StudentDashboardPage = () => {
                                                     {test.title}
                                                 </Typography>
 
-                                                <Typography color="text.secondary">
-                                                    {test.description}
-                                                </Typography>
-
                                                 <Typography
                                                     variant="body2"
                                                     color="text.secondary">

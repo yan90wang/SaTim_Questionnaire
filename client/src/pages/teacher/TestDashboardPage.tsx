@@ -164,7 +164,15 @@ const TestDashboardPage = () => {
                                                     </Box>
 
                                                     <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
+                                                        Beschreibung
+                                                    </Box>
+
+                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
                                                         Status
+                                                    </Box>
+
+                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
+                                                        Ergebnisse
                                                     </Box>
 
                                                     <Box component="th" sx={{textAlign: "right", p: 1.5,}}>
@@ -185,12 +193,14 @@ const TestDashboardPage = () => {
                                                                 <Typography fontWeight={500}>
                                                                     {test.title}
                                                                 </Typography>
+                                                            </Box>
 
-                                                                {test.description && (
-                                                                    <Typography variant="body2" color="text.secondary" sx={{mt: 0.5,}}>
-                                                                        {test.description}
-                                                                    </Typography>
-                                                                )}
+                                                            <Box component="td" sx={{p: 1.5,}}>
+                                                            {test.description && (
+                                                                <Typography variant="body2" color="text.secondary" sx={{mt: 0.5,}}>
+                                                                    {test.description}
+                                                                </Typography>
+                                                            )}
                                                             </Box>
 
 
@@ -201,6 +211,10 @@ const TestDashboardPage = () => {
                                                                     label={test.active ? "Aktiv" : "Inaktiv"}
                                                                     color={test.active ? "success" : "default"}
                                                                 />
+                                                            </Box>
+
+                                                            <Box component="td" sx={{p: 1.5,}}>
+                                                              //TODO add results
                                                             </Box>
 
                                                             {/* Action */}

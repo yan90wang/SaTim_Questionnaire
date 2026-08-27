@@ -13,6 +13,8 @@ export interface RegisterStudentRequest {
     password: string;
     birthday: string;
     registrationToken: string;
+    privacyAccepted: boolean;
+    dataProcessingAccepted: boolean;
 }
 
 export interface StudentLoginRequest {
