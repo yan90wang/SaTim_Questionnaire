@@ -1,6 +1,7 @@
 import prisma from "../config/prismaClient.js";
 import bcrypt from "bcrypt";
 import {getUserTeam} from "./teamServices.js";
+import {SwissCanton} from "@prisma/client";
 
 const saltRounds = 10;
 
@@ -12,7 +13,8 @@ interface RegisterTeacherInput {
     password: string;
     schoolName: string;
     schoolAddress: string;
-    userId: string
+    userId: string;
+    canton: SwissCanton;
 }
 
 export const getTeachersService = async () => {
@@ -32,7 +34,7 @@ export const getTeachersService = async () => {
     });
 };
 
-export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId}: RegisterTeacherInput) => {
+export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId, canton}: RegisterTeacherInput) => {
     const existingTeacher = await prisma.teacher.findUnique({where: {email,},});
 
     if (existingTeacher) {
@@ -50,7 +52,8 @@ export const registerTeacherService = async ({firstName, lastName, email, passwo
             password: hashedPassword,
             school_name: schoolName,
             school_address: schoolAddress,
-            teamId: teamId
+            teamId: teamId,
+            canton: canton
         },
         select: {
             id: true,
@@ -60,6 +63,7 @@ export const registerTeacherService = async ({firstName, lastName, email, passwo
             school_name: true,
             school_address: true,
             createdAt: true,
+            canton: true
         },
     });
 };
@@ -85,6 +89,7 @@ export const getTeacherByIdService = async (id: number) => {
             school_name: true,
             school_address: true,
             createdAt: true,
+            canton: true
         },
     });
 };

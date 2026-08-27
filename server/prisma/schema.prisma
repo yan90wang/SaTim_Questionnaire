@@ -275,14 +275,15 @@ model teacher {
 
   first_name     String
   last_name      String
-  email          String   @unique
+  email          String       @unique
   password       String
   school_name    String
   school_address String
+  canton         SwissCanton?
   teamId         Int
-  team           team     @relation(fields: [teamId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  team           team         @relation(fields: [teamId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   classes schoolClass[]
 }
@@ -332,4 +333,33 @@ model classTestInstance {
   @@unique([surveyId, classId])
   @@index([classId])
   @@index([surveyId])
+}
+
+enum SwissCanton {
+  AG
+  AI
+  AR
+  BE
+  BL
+  BS
+  FR
+  GE
+  GL
+  GR
+  JU
+  LU
+  NE
+  NW
+  OW
+  SG
+  SH
+  SO
+  SZ
+  TG
+  TI
+  UR
+  VD
+  VS
+  ZG
+  ZH
 }

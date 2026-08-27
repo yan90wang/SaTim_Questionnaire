@@ -3,12 +3,15 @@ import {
     Box,
     Card,
     CardContent,
-    CardHeader,
+    CardHeader, FormControl, InputLabel,
+    MenuItem,
+    Select,
     TextField,
     Typography,
 } from "@mui/material";
 import TeacherLayout from "../../layouts/TeacherLayout.tsx";
 import {getTeacherById, type Teacher} from "../../services/TeacherService.tsx";
+import { SWISS_CANTONS } from "./Cantons.tsx";
 
 const TeacherProfilePage = () => {
     const teacherId = Number(localStorage.getItem("teacherId"));
@@ -22,6 +25,7 @@ const TeacherProfilePage = () => {
         email: "",
         school_name: "",
         school_address: "",
+        canton: ""
     });
 
     useEffect(() => {
@@ -49,7 +53,8 @@ const TeacherProfilePage = () => {
             | "last_name"
             | "email"
             | "school_name"
-            | "school_address",
+            | "school_address"
+            | "canton",
         value: string
     ) => {
         setTeacher((prev) => ({
@@ -143,6 +148,27 @@ const TeacherProfilePage = () => {
                                 )
                             }
                         />
+
+                        <FormControl fullWidth required disabled={isLoading}>
+                            <InputLabel id="teacher-canton-label">
+                                Kanton
+                            </InputLabel>
+
+                            <Select
+                                labelId="teacher-canton-label"
+                                value={teacher.canton ?? ""}
+                                label="Kanton"
+                                onChange={(e) =>
+                                    handleChange("canton", e.target.value)
+                                }
+                            >
+                                {SWISS_CANTONS.map((canton) => (
+                                    <MenuItem key={canton.value} value={canton.value}>
+                                        {canton.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </CardContent>
                 </Card>
             </Box>

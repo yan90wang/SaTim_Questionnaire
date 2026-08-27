@@ -8,6 +8,7 @@ export interface Teacher {
     email: string;
     school_name: string;
     school_address: string;
+    canton: string;
 }
 
 export interface RegisterTeacherRequest {

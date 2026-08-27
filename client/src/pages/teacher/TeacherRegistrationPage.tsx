@@ -1,8 +1,10 @@
 import React, {useState} from "react";
-import {Alert, Box, Button, Card, CardContent, CircularProgress, Snackbar, TextField, Typography,} from "@mui/material";
+import {Alert, Box, Button, Card, CardContent, CircularProgress, FormControl,
+    InputLabel, MenuItem, Select, Snackbar, TextField, Typography,} from "@mui/material";
 import {registerTeacher} from "../../services/TeacherService.tsx";
 import GeneralLayout from "../../layouts/GeneralLayout.tsx";
 import {useNavigate, useParams} from "react-router-dom";
+import {SWISS_CANTONS} from "./Cantons.tsx";
 
 const TeacherRegistrationPage = () => {
     const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ const TeacherRegistrationPage = () => {
         confirmPassword: "",
         schoolName: "",
         schoolAddress: "",
+        canton: ""
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>
@@ -52,6 +55,14 @@ const TeacherRegistrationPage = () => {
             setSnackbar({
                 open: true,
                 message: "Das Passwort muss mindestens 8 Zeichen lang sein.",
+                severity: "error",
+            });
+            return;
+        }
+        if (!form.canton) {
+            setSnackbar({
+                open: true,
+                message: "Bitte wählen Sie einen Kanton aus.",
                 severity: "error",
             });
             return;
@@ -157,6 +168,28 @@ const TeacherRegistrationPage = () => {
                             onChange={handleChange}
                             required
                         />
+
+                        <FormControl required fullWidth>
+                            <InputLabel id="canton-label">Kanton</InputLabel>
+                            <Select
+                                labelId="canton-label"
+                                name="canton"
+                                value={form.canton}
+                                label="Kanton"
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        canton: e.target.value,
+                                    })
+                                }
+                            >
+                                {SWISS_CANTONS.map((canton) => (
+                                    <MenuItem key={canton.value} value={canton.value}>
+                                        {canton.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
 
                         <Button
                             variant="contained"

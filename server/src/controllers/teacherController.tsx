@@ -8,6 +8,7 @@ import {
 } from "../services/teacherService.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import type {SwissCanton} from "@prisma/client";
 
 interface RegisterTeacherBody {
     token?: string;
@@ -18,6 +19,7 @@ interface RegisterTeacherBody {
     schoolName: string;
     schoolAddress: string;
     userId: string;
+    canton: SwissCanton;
 }
 
 interface TeacherLoginRequestBody {
