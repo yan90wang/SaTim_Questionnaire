@@ -20,19 +20,43 @@ export const getClassesService = async (teacherId: number) => {
 };
 
 export const createClassService = async (teacherId: number, name: string, type: string) => {
-    return prisma.schoolClass.create({
-        data: {
-            name,
-            type,
-            teacherId,
-        },
-        include: {
-            _count: {
-                select: {
-                    student: true,
+    return prisma.$transaction(async (tx) => {
+
+        const schoolClass = await tx.schoolClass.create({
+            data: {
+                name,
+                type,
+                teacherId,
+            },
+            include: {
+                _count: {
+                    select: {
+                        student: true,
+                    },
                 },
             },
-        },
+        });
+
+        const teacherAssignedSurveys = await tx.survey.findMany({
+            where: {
+                teacherAssigned: true,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (teacherAssignedSurveys.length > 0) {
+            await tx.classTestInstance.createMany({
+                data: teacherAssignedSurveys.map((survey) => ({
+                    surveyId: survey.id,
+                    classId: schoolClass.id,
+                    active: false,
+                })),
+                skipDuplicates: true,
+            });
+        }
+        return schoolClass;
     });
 };
 
