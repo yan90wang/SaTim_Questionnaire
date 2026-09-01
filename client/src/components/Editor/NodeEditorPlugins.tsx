@@ -8,8 +8,9 @@ import {NumericEditorComponent} from "../Numeric/NumericEditorComponent.tsx";
 import {LaTeXComponent} from "../LaTeX/LaTeXComponent.tsx";
 import {SingleChoiceEditorComponent} from "../SC/SingleChoiceEditorComponent.tsx";
 import {LineEquationEditorComponent} from "../LineEquation/LineEquationEditorComponent.tsx";
-import {GeoGebraSlopeEditorComponent} from "../GeoGebra/SlopeTriangle/GeoGebraSlopeEditorComponent.tsx";
+import {GeoGebraSlopeEditorComponent} from "../GeoGebra/SlopeLine/GeoGebraSlopeEditorComponent.tsx";
 import {AlgebraEditorComponent} from "../Algebra/AlgebraEditorComponent.tsx";
+import {GeoGebraSlopeTriangleEditorComponent} from "../GeoGebra/SlopeTriangle/GeoGebraSlopeTriangleEditorComponent.tsx";
 
 export const MCChoice = Node.create({
     name: 'mcChoice',
@@ -336,3 +337,28 @@ export const Algebra = Node.create({
         return ReactNodeViewRenderer(AlgebraEditorComponent)
     },
 })
+
+export const GeoGebraSlopeTriangleNode = Node.create({
+    name: 'geoGebraSlopeTriangle',
+    group: 'block',
+    atom: true,
+
+    addAttributes() {
+        return {id: { default: null }, materialId: { default: '' }, width: { default: '800' }, height: { default: '600' },};},
+
+    parseHTML() {
+        return [{tag: 'div[data-type="geoGebraSlopeTriangle"]'}];},
+
+    renderHTML({ HTMLAttributes }) {
+        return [
+            'div',
+            mergeAttributes(
+                HTMLAttributes, {'data-type': 'geoGebraSlopeTriangle'}
+            ),
+        ];
+    },
+
+    addNodeView() {
+        return ReactNodeViewRenderer(GeoGebraSlopeTriangleEditorComponent);
+    },
+});

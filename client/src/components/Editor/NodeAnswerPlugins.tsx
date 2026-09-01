@@ -7,8 +7,9 @@ import {FreeTextInlineAnswerComponent} from "../FreeText/FreeTextInlineAnswerCom
 import {NumericAnswerComponent} from "../Numeric/NumericAnswerComponent.tsx";
 import {SingleChoiceAnswerComponent} from "../SC/SingleChoiceAnswerComponent.tsx";
 import {LineEquationAnswerComponent} from "../LineEquation/LineEquationAnswerComponent.tsx";
-import {GeoGebraSlopeAnswerNodeView} from "../GeoGebra/SlopeTriangle/GeoGebraSlopeAnswerNodeView.tsx";
+import {GeoGebraSlopeAnswerNodeView} from "../GeoGebra/SlopeLine/GeoGebraSlopeAnswerNodeView.tsx";
 import {AlgebraAnswerComponent} from "../Algebra/AlgebraAnswerComponent.tsx";
+import {GeoGebraSlopeTriangleAnswerNodeView} from "../GeoGebra/SlopeTriangle/GeoGebraSlopeTriangleAnswerNodeView.tsx";
 
 export const FreeText = Node.create({
     name: 'freeText',
@@ -317,3 +318,50 @@ export const Algebra = Node.create({
         return ReactNodeViewRenderer(AlgebraAnswerComponent)
     },
 })
+
+export const GeoGebraSlopeTriangleNode = Node.create({
+    name: 'geoGebraSlopeTriangle',
+    group: 'block',
+    atom: true,
+
+    addAttributes() {
+        return {
+            id: { default: null },
+            materialId: { default: '' },
+            width: { default: '800' },
+            height: { default: '600' },
+
+            value: {
+                default: null,
+            },
+
+            answer: {
+                default: null,
+            },
+        };
+    },
+
+    parseHTML() {
+        return [
+            {
+                tag: 'div[data-type="geoGebraSlopeTriangle"]'
+            }
+        ];
+    },
+
+    renderHTML({ HTMLAttributes }) {
+        return [
+            'div',
+            mergeAttributes(
+                HTMLAttributes,
+                {
+                    'data-type': 'geoGebraSlopeTriangle'
+                }
+            )
+        ];
+    },
+
+    addNodeView() {
+        return ReactNodeViewRenderer(GeoGebraSlopeTriangleAnswerNodeView);
+    },
+});

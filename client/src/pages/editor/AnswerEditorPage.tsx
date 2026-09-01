@@ -114,7 +114,8 @@ export default function AnswerEditorPage() {
                     }
                     break;
                 }
-                case "geoGebraSlope": {
+                case "geoGebraSlope":
+                case "geoGebraSlopeTriangle": {
                     initial[b.key] = [{operator: "=", value: ""}];
                 }
             }
@@ -227,6 +228,7 @@ export default function AnswerEditorPage() {
                     }
                     break;
                 case "geoGebraSlope":
+                case "geoGebraSlopeTriangle":
                     if (!Array.isArray(val) || !hasValid(val)) errors.push(`Geogebra Steigung (${index+1}) braucht gültige Werte.`);
                     break;
             }
@@ -336,7 +338,8 @@ export default function AnswerEditorPage() {
                                                                     b.kind === "numeric" ? `Numerische Eingabe (${idx + 1})` :
                                                                         b.kind === "lineEquation" ? `Geradengleichung (${idx + 1})` :
                                                                            b.kind === "geoGebraSlope" ? `GeoGebra Steigungsdreieck (${idx + 1})` :
-                                                                               b.kind === "geoGebraPoints" ? `GeoGebra Punkte (${idx + 1})` : `GeoGebra Linien (${idx + 1})`}
+                                                                               b.kind === "geoGebraSlopeTriangle" ? `GeoGebra Steigungsdreieck (${idx + 1})` :
+                                                                                   b.kind === "geoGebraPoints" ? `GeoGebra Punkte (${idx + 1})` : `GeoGebra Linien (${idx + 1})`}
                                             </Typography>
                                         </AccordionSummary>
                                         <AccordionDetails>
@@ -441,12 +444,13 @@ export default function AnswerEditorPage() {
                                                 })
                                             }
 
-                                            {b.kind === "geoGebraSlope" &&
+                                            {(b.kind === "geoGebraSlope" ||
+                                                b.kind === "geoGebraSlopeTriangle") && (
                                                 <NumericAnswer
                                                     conditions={answers[b.key] ?? [{operator: "=", value: ""}]}
                                                     onChange={(val) => handleAnswerChange(b.key, val)}
                                                     alternateText={"Der korrekte Wert für Steigung m ist:"}
-                                                />}
+                                                />)}
                                         </AccordionDetails>
                                     </Accordion>
                                 ))}

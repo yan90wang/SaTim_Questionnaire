@@ -13,6 +13,7 @@ export type Answer =
     | GeoGebraPointsAnswer
     | GeoGebraLinesAnswer
     | GeoGebraSlopeAnswer
+    | GeoGebraSlopeTriangleAnswer
     | AlgebraAnswer;
 
 export type LineEquationAnswer = {
@@ -47,6 +48,26 @@ export type GeoGebraSlopeAnswer = {
     value: GeoGebraSlope;
 };
 
+export type GeoGebraSlopeTriangleAnswer = {
+    kind: "geoGebraSlopeTriangle";
+    key: string;
+    value: GeoGebraSlopeTriangle;
+};
+
+export interface GeoGebraSlopeTriangle {
+    line1: string;
+    point1Line1: GeoGebraPoint;
+    point2Line1: GeoGebraPoint;
+
+    line2: string;
+    point1Line2: GeoGebraPoint;
+    point2Line2: GeoGebraPoint;
+
+    line3: string;
+    point1Line3: GeoGebraPoint;
+    point2Line3: GeoGebraPoint;
+}
+
 export type Block =
     | { kind: "mc"; key: string; choices: Choice[] }
     | { kind: "sc"; key: string; choices: Choice[] }
@@ -57,6 +78,7 @@ export type Block =
     | { kind: "geoGebraPoints"; key: string; attrs?: { maxPoints?: number }}
     | { kind: "geoGebraLines"; key: string; attrs?: { maxLines?: number }}
     | {kind: "geoGebraSlope"; key: string;}
+    | { kind: "geoGebraSlopeTriangle"; key: string }
     | {kind: "algebra"; key: string};
 
 export const mapQuestionsStatus = (
@@ -159,6 +181,13 @@ export function parseContentToBlocks(json: JSONContent): Block[] {
                         kind: "geoGebraSlope",
                         key: nodeKey};
             }
+            if (node.type === "geoGebraSlopeTriangle") {
+                const nodeKey = node.attrs?.id || uuidv4();
+                blockMap[nodeKey] = {
+                    kind: "geoGebraSlopeTriangle",
+                    key: nodeKey
+                };
+            }
             if (node.content) walk(node.content);
         });
     };
@@ -206,6 +235,24 @@ export function extractAnswersFromJson(doc: JSONContent, blocks: Block[]): Answe
                     kind: "geoGebraSlope",
                     key: block.key,
                     value: { line1: "", point1Line1: {name:"", x:0, y:0}, point2Line1:{name:"", x:0, y:0}, line2: "", point1Line2: {name:"", x:0, y:0}, point2Line2: {name:"", x:0, y:0}}
+                };
+            case "geoGebraSlopeTriangle":
+                return {
+                    kind: "geoGebraSlopeTriangle",
+                    key: block.key,
+                    value: {
+                        line1: "",
+                        point1Line1: {name: "", x: 0, y: 0},
+                        point2Line1: {name: "", x: 0, y: 0},
+
+                        line2: "",
+                        point1Line2: {name: "", x: 0, y: 0},
+                        point2Line2: {name: "", x: 0, y: 0},
+
+                        line3: "",
+                        point1Line3: {name: "", x: 0, y: 0},
+                        point2Line3: {name: "", x: 0, y: 0}
+                    }
                 };
         }
     });
@@ -288,6 +335,16 @@ export function extractAnswersFromJson(doc: JSONContent, blocks: Block[]): Answe
             const match = geoGebraAnswers.find(g => g.id === ans.key);
             if (match) {return {...ans, value: match.value as unknown as GeoGebraSlope,} as GeoGebraSlopeAnswer;}
         }
+
+        if (ans.kind === "geoGebraSlopeTriangle") {
+            const match = geoGebraAnswers.find(g => g.id === ans.key);
+            if (match) {
+                return {
+                    ...ans,
+                    value: match.value as unknown as GeoGebraSlopeTriangle
+                } as GeoGebraSlopeTriangleAnswer;
+            }
+        }
         return ans;
     });
 }
@@ -349,6 +406,42 @@ export function hasAnswer(answers: Answer[]): boolean {
                     slope.point2Line2.x !== 0 ||
                     slope.point2Line2.y !== 0;
                 return hasLine1 && hasLine2;}
+            case "geoGebraSlopeTriangle": {
+                const slope = answer.value;
+
+                if (!slope) {
+                    return false;
+                }
+
+                const hasLine1 =
+                    slope.line1.trim() !== "" ||
+                    slope.point1Line1.name.trim() !== "" ||
+                    slope.point2Line1.name.trim() !== "" ||
+                    slope.point1Line1.x !== 0 ||
+                    slope.point1Line1.y !== 0 ||
+                    slope.point2Line1.x !== 0 ||
+                    slope.point2Line1.y !== 0;
+
+                const hasLine2 =
+                    slope.line2.trim() !== "" ||
+                    slope.point1Line2.name.trim() !== "" ||
+                    slope.point2Line2.name.trim() !== "" ||
+                    slope.point1Line2.x !== 0 ||
+                    slope.point1Line2.y !== 0 ||
+                    slope.point2Line2.x !== 0 ||
+                    slope.point2Line2.y !== 0;
+
+                const hasLine3 =
+                    slope.line3.trim() !== "" ||
+                    slope.point1Line3.name.trim() !== "" ||
+                    slope.point2Line3.name.trim() !== "" ||
+                    slope.point1Line3.x !== 0 ||
+                    slope.point1Line3.y !== 0 ||
+                    slope.point2Line3.x !== 0 ||
+                    slope.point2Line3.y !== 0;
+
+                return hasLine1 && hasLine2 && hasLine3;
+            }
             default:
                 return false;
         }

@@ -5,7 +5,7 @@ import {
     Algebra,
     FreeText,
     FreeTextInline,
-    GeoGebra, GeoGebraSlopeNode,
+    GeoGebra, GeoGebraSlopeNode, GeoGebraSlopeTriangleNode,
     LineEquation,
     MCChoice,
     NumericInput,
@@ -22,7 +22,12 @@ import type {JSONContent} from '@tiptap/core';
 import {LatexDisplay} from "./NodeEditorPlugins.tsx";
 import {MathJaxContext} from "better-react-mathjax";
 import Underline from '@tiptap/extension-underline';
-import type {GeoGebraLine, GeoGebraPoint, GeoGebraSlope} from "../../pages/utils/AnswerUtils.tsx";
+import type {
+    GeoGebraLine,
+    GeoGebraPoint,
+    GeoGebraSlope,
+    GeoGebraSlopeTriangle
+} from "../../pages/utils/AnswerUtils.tsx";
 import {InlineResizableImage} from "./InlineResizableImage.tsx";
 import {Box} from "@mui/material";
 
@@ -35,7 +40,7 @@ interface PreviewProps {
 export interface GeoGebraAnswer {
     id: string;
     kind: 'points' | 'lines' | 'slopes';
-    value: GeoGebraPoint[] | GeoGebraLine[] | GeoGebraSlope[];
+    value: GeoGebraPoint[] | GeoGebraLine[] | GeoGebraSlope[] | GeoGebraSlopeTriangle[];
 }
 
 export const Preview: React.FC<PreviewProps> = ({ content, editorRef: previewEditorRef, onGeoGebraChange }) => {
@@ -62,6 +67,13 @@ export const Preview: React.FC<PreviewProps> = ({ content, editorRef: previewEdi
             GeoGebraSlopeNode.configure({
                 onAnswerChange: (answer: GeoGebraAnswer) => {
                     if (onGeoGebraChange) onGeoGebraChange(answer);
+                },
+            }),
+            GeoGebraSlopeTriangleNode.configure({
+                onAnswerChange: (answer: GeoGebraAnswer) => {
+                    if (onGeoGebraChange) {
+                        onGeoGebraChange(answer);
+                    }
                 },
             }),
             FreeText,
@@ -105,10 +117,6 @@ export const Preview: React.FC<PreviewProps> = ({ content, editorRef: previewEdi
                         "& table": {width: "100%", borderCollapse: "collapse", margin: "1.5rem 0",},
                         "& th, & td": {border: "1px solid", borderColor: "divider", padding: "0.7rem 0.9rem", verticalAlign: "top",},
                         "& th": {fontWeight: 700, backgroundColor: "action.hover",},
-
-                        // IMAGES
-                        "& img": {
-                        display: "block", maxWidth: "100%", height: "auto", margin: "1.5rem auto", borderRadius: 2,},
 
                         // FREE TEXT
                         "& .free-text": {margin: "1rem 0", backgroundColor: "action.hover"},

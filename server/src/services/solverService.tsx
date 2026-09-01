@@ -2,7 +2,7 @@ import prisma from "../config/prismaClient.js";
 import type {question} from "@prisma/client";
 import {ce} from "../index.js";
 
-type AnswerType = "sc" | "mc" | "numeric" | "freeText" | "geoGebraPoints" | "geoGebraLines" | "freeTextInline" | "lineEquation" | "algebra" | "geoGebraSlope";
+type AnswerType = "sc" | "mc" | "numeric" | "freeText" | "geoGebraPoints" | "geoGebraLines" | "freeTextInline" | "lineEquation" | "algebra" | "geoGebraSlope" | "geoGebraSlopeTriangle";
 
 interface CorrectAnswerBase {
     type: AnswerType;
@@ -57,13 +57,18 @@ interface GeoGebraSlopeAnswer extends CorrectAnswerBase {
     value: any;
 }
 
+interface GeoGebraSlopeTriangleAnswer extends CorrectAnswerBase {
+    type: "geoGebraSlopeTriangle";
+    value: any;
+}
+
 type NumericCondition = {
     value: string;
     operator: "=" | "<" | ">" | "<=" | ">=";
     logic?: "and" | "or";
 };
 
-type CorrectAnswer = | SingleChoiceAnswer | MultipleChoiceAnswer | NumericAnswer | LineEquationAnswer | FreeTextAnswer | GeoGebraPointAnswer | GeoGebraLineAnswer | AlgebraAnswer | GeoGebraSlopeAnswer;
+type CorrectAnswer = | SingleChoiceAnswer | MultipleChoiceAnswer | NumericAnswer | LineEquationAnswer | FreeTextAnswer | GeoGebraPointAnswer | GeoGebraLineAnswer | AlgebraAnswer | GeoGebraSlopeAnswer | GeoGebraSlopeTriangleAnswer;
 
 type CorrectAnswersJson = Record<string, CorrectAnswer>;
 
@@ -256,6 +261,36 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                     } catch (err) {
                         console.log("geoGebraSlope evaluation error:", err);
                     }
+                    break;
+                }
+                case "geoGebraSlopeTriangle": {
+                    try {
+                        const data = userAnswer.value;
+                        if (!data || !data.point1Line1 || !data.point2Line1 || !data.point1Line2 || !data.point2Line2 || !data.point1Line3 || !data.point2Line3) {
+                            break;
+                        }
+
+                        const lines = [[data.point1Line1, data.point2Line1], [data.point1Line2, data.point2Line2], [data.point1Line3, data.point2Line3],];
+                        let slope: number | null = null;
+                        if (linesArePerpendicular(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1])) {
+                            slope = calculateSlope(lines[2]![0], lines[2]![1]);
+                        } else if (
+                            linesArePerpendicular(lines[0]![0], lines[0]![1], lines[2]![0], lines[2]![1])) {
+                            slope = calculateSlope(lines[1]![0], lines[1]![1]);
+                        } else if (
+                            linesArePerpendicular(lines[1]![0], lines[1]![1], lines[2]![0], lines[2]![1])
+                        ) {
+                            slope = calculateSlope(lines[0]![0], lines[0]![1]);
+                        }
+                        if (slope === null) {break;}
+                        if (checkNumericConditions(slope, correctAnswer.value)) {isCorrect = true;}
+                    } catch (err) {
+                        console.log(
+                            "geoGebraSlopeTriangle evaluation error:",
+                            err
+                        );
+                    }
+
                     break;
                 }
             }

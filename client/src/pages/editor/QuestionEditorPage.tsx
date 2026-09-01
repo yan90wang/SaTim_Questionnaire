@@ -22,7 +22,7 @@ import {
     Algebra,
     FreeText,
     FreeTextInline,
-    GeoGebra, GeoGebraSlopeNode,
+    GeoGebra, GeoGebraSlopeNode, GeoGebraSlopeTriangleNode,
     LatexDisplay,
     LineEquation,
     MCChoice,
@@ -52,7 +52,7 @@ export default function QuestionEditorPage() {
             StarterKit.configure({bulletList: {keepMarks: true}, orderedList: {keepMarks: true}}),
             TextStyle, FontSize, FontFamily, Underline, TextAlign.configure({ types: ['heading', 'paragraph', 'bulletList', 'orderedList'] }),
             Link, Table.configure({resizable: true, allowTableNodeSelection: true}), TableRow, TableCell, TableHeader, InlineResizableImage,
-            MCChoice, FreeText, FreeTextInline, NumericInput, LineEquation, GeoGebraSlopeNode, GeoGebra, LatexDisplay, SingleChoice, Algebra
+            MCChoice, FreeText, FreeTextInline, NumericInput, LineEquation, GeoGebraSlopeNode, GeoGebra, LatexDisplay, SingleChoice, Algebra, GeoGebraSlopeTriangleNode
         ],
         content: '<p>Erstelle hier deine Aufgabe...</p>',
     });
@@ -171,6 +171,17 @@ export default function QuestionEditorPage() {
         }).run();
     };
 
+    const addGeoGebraSlopeTriangle = () => {
+        if (!editor) return;
+        editor.chain().focus().insertContent({
+            type: 'geoGebraSlopeTriangle',
+            attrs: {
+                id: uuidv4(),
+                materialId: '',
+            },
+        }).run();
+    };
+
     const handleSave = async () => {
         if (!editor || !id) return;
         const contentJson = editor.getJSON();
@@ -277,7 +288,8 @@ export default function QuestionEditorPage() {
                                 <MenuItem onClick={addLineEquation}>Geradengleichung</MenuItem>
                                 <MenuItem onClick={addGeoGebraPoints}>GeoGebra Applet – Punkte</MenuItem>
                                 <MenuItem onClick={addGeoGebraLines}>GeoGebra Applet – Strecke, Gerade, etc.</MenuItem>
-                                <MenuItem onClick={addGeoGebraSlopes}>GeoGebra Applet – Steigungsdreieck</MenuItem>
+                                <MenuItem onClick={addGeoGebraSlopes}>GeoGebra Applet – Steigungsdreieck an Gerade</MenuItem>
+                                <MenuItem onClick={addGeoGebraSlopeTriangle}>GeoGebra Applet – Steigungsdreieck komplett</MenuItem>
                             </Menu>
                         </Box>
 
