@@ -4,7 +4,7 @@ import {
     getTeacherByIdService,
     getTeachersService,
     loginTeacherService,
-    registerTeacherService, registerUnder14StudentService,
+    registerTeacherService, registerUnder14StudentService, updateTeacherService,
 } from "../services/teacherService.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -20,11 +20,22 @@ interface RegisterTeacherBody {
     schoolAddress: string;
     userId: string;
     canton: SwissCanton;
+    privacyAccepted: boolean;
 }
 
 interface TeacherLoginRequestBody {
     email: string;
     password: string;
+}
+
+interface UpdateTeacherBody {
+    first_name: string;
+    last_name: string;
+    email: string;
+    school_name: string;
+    school_address: string;
+    canton: SwissCanton;
+    privacyAccepted: boolean;
 }
 
 export const getTeachers = async (_req: Request, res: Response) => {
@@ -168,3 +179,29 @@ export const registerUnder14Student = async (
         console.error("Under-14 student registration error:", err);
         return res.status(500).json({message: "Schüler konnte nicht registriert werden.",});
     }};
+
+export const updateTeacher = async (
+    req: Request<{ id: string }, {}, UpdateTeacherBody>,
+    res: Response
+) => {
+    try {
+        const teacherId = Number(req.params.id);
+        if (isNaN(teacherId)) {return res.status(400).json({message: "Invalid teacher id",});}
+        const authenticatedTeacherId = (req as any).teacherId;
+        if (!authenticatedTeacherId) {return res.status(401).json({message: "Teacher not authenticated",});}
+        if (Number(authenticatedTeacherId) !== teacherId) {
+            return res.status(403).json({
+                message: "Access denied",
+            });
+        }
+        const updatedTeacher = await updateTeacherService(teacherId, req.body);
+        return res.status(200).json(updatedTeacher);
+
+    } catch (err) {
+        console.error("Teacher update error:", err);
+        if (err instanceof Error && err.message === "Teacher not found") {
+            return res.status(404).json({message: "Teacher not found",});
+        }
+        return res.status(500).json({message: "Teacher could not be updated",});
+    }
+};

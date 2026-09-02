@@ -10,7 +10,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    FormControlLabel,
+    FormControlLabel, IconButton, InputAdornment,
     Link,
     Snackbar,
     TextField,
@@ -19,7 +19,7 @@ import {
 import GeneralLayout from "../../layouts/GeneralLayout";
 import {registerStudent, requestUnder14Registration} from "../../services/StudentService.tsx";
 import {useNavigate, useParams} from "react-router-dom";
-
+import {Visibility, VisibilityOff} from "@mui/icons-material";
 
 const StudentRegistrationPage = () => {
     const [step, setStep] = useState(1);
@@ -40,6 +40,7 @@ const StudentRegistrationPage = () => {
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
     const [dataProcessingAccepted, setDataProcessingAccepted] = useState(false);
     const [privacyDialogOpen, setPrivacyDialogOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const calculateAge = (date: string) => {
         const birthDate = new Date(date);
@@ -80,6 +81,14 @@ const StudentRegistrationPage = () => {
     const handleRegister = async () => {
         if (!privacyAccepted || !dataProcessingAccepted) {
             setSnackbar({open: true, message: "Bitte bestätige beide Datenschutzbestimmungen.", severity: "error",});
+            return;
+        }
+        if (form.password.length < 6) {
+            setSnackbar({
+                open: true,
+                message: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+                severity: "error",
+            });
             return;
         }
         try {
@@ -131,7 +140,28 @@ const StudentRegistrationPage = () => {
                                 <Typography variant="h4" gutterBottom>Deine Daten</Typography>
                                 <Box display="flex" flexDirection="column" gap={2}>
                                     <TextField label="E-Mail" name="email" type="email" value={form.email} onChange={handleChange}/>
-                                    <TextField label="Passwort" name="password" type="password" value={form.password} onChange={handleChange}/>
+                                    <TextField
+                                        label="Passwort"
+                                        name="password"
+                                        type={showPassword ? "text" : "password"}
+                                        value={form.password}
+                                        onChange={handleChange}
+                                        slotProps={{
+                                            input: {
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <IconButton
+                                                            onClick={() => setShowPassword((prev) => !prev)}
+                                                            edge="end"
+                                                            aria-label={
+                                                            showPassword ? "Passwort ausblenden" : "Passwort anzeigen"}>
+                                                            {showPassword ? (<VisibilityOff />) : (<Visibility />)}
+                                                        </IconButton>
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                    />
                                     <Box>
                                         <FormControlLabel
                                             control={<Checkbox checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)}/>}

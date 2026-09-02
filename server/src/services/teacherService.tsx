@@ -15,6 +15,7 @@ interface RegisterTeacherInput {
     schoolAddress: string;
     userId: string;
     canton: SwissCanton;
+    privacyAccepted: boolean;
 }
 
 export const getTeachersService = async () => {
@@ -34,13 +35,15 @@ export const getTeachersService = async () => {
     });
 };
 
-export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId, canton}: RegisterTeacherInput) => {
+export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId, canton, privacyAccepted}: RegisterTeacherInput) => {
     const existingTeacher = await prisma.teacher.findUnique({where: {email,},});
 
     if (existingTeacher) {
         throw new Error("Email already exists");
     }
-
+    if (!privacyAccepted) {
+        throw new Error("Privacy policy must be accepted");
+    }
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const teamId = await getUserTeam(userId);
 
@@ -53,7 +56,8 @@ export const registerTeacherService = async ({firstName, lastName, email, passwo
             school_name: schoolName,
             school_address: schoolAddress,
             teamId: teamId,
-            canton: canton
+            canton: canton,
+            privacyAcceptedAt: new Date(),
         },
         select: {
             id: true,
@@ -63,7 +67,8 @@ export const registerTeacherService = async ({firstName, lastName, email, passwo
             school_name: true,
             school_address: true,
             createdAt: true,
-            canton: true
+            canton: true,
+            privacyAcceptedAt: true
         },
     });
 };
@@ -164,4 +169,63 @@ const generateStudentEmail = async (): Promise<string> => {
 
         if (!existingStudent) {return email;}
     } while (true);
+};
+
+interface UpdateTeacherInput {
+    first_name: string;
+    last_name: string;
+    email: string;
+    school_name: string;
+    school_address: string;
+    canton: SwissCanton;
+    privacyAccepted: boolean;
+}
+
+export const updateTeacherService = async (
+    teacherId: number,
+    data: UpdateTeacherInput
+) => {
+    const existingTeacher = await prisma.teacher.findUnique({
+        where: {
+            id: teacherId,
+        },
+    });
+
+    if (!existingTeacher) {
+        throw new Error("Teacher not found");
+    }
+    if (data.email !== existingTeacher.email) {
+        const teacherWithEmail = await prisma.teacher.findUnique({
+            where: {email: data.email,},
+        });
+
+        if (teacherWithEmail) {
+            throw new Error("Email already exists");
+        }
+    }
+
+    return prisma.teacher.update({
+        where: {
+            id: teacherId,
+        },
+        data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            school_name: data.school_name,
+            school_address: data.school_address,
+            canton: data.canton,
+        },
+        select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            school_name: true,
+            school_address: true,
+            canton: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
 };

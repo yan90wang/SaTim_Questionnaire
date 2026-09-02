@@ -20,6 +20,16 @@ export interface RegisterTeacherRequest {
     schoolName: string;
     schoolAddress: string;
     userId: string;
+    privacyAccepted: boolean;
+}
+
+export interface UpdateTeacherRequest {
+    first_name: string;
+    last_name: string;
+    email: string;
+    school_name: string;
+    school_address: string;
+    canton: string;
 }
 
 export interface TeacherLoginRequest {
@@ -66,7 +76,6 @@ export const registerTeacher = async (data: RegisterTeacherRequest) => {
         throw new Error("Registration failed");
     }
     const result = await response.json();
-    console.log(result)
     saveTeacherSession(result);
     return result;
 };
@@ -112,6 +121,32 @@ export const getTeacherById = async (
 
     if (!response.ok) {
         throw new Error("Failed to fetch teacher");
+    }
+
+    return await response.json();
+};
+
+export const updateTeacher = async (
+    id: number,
+    data: UpdateTeacherRequest
+): Promise<Teacher> => {
+    const response = await teacherAuthFetch(
+        `${API_URL}/api/teacher/${id}`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+
+        throw new Error(
+            error?.message || "Failed to update teacher"
+        );
     }
 
     return await response.json();

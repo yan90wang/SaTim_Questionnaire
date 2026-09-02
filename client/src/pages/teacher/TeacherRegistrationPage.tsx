@@ -1,10 +1,17 @@
 import React, {useState} from "react";
-import {Alert, Box, Button, Card, CardContent, CircularProgress, FormControl,
-    InputLabel, MenuItem, Select, Snackbar, TextField, Typography,} from "@mui/material";
+import {
+    Alert, Box, Button, Card, CardContent, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent,
+    DialogTitle, FormControl,
+    FormControlLabel,
+    IconButton,
+    InputAdornment,
+    InputLabel, Link, MenuItem, Select, Snackbar, TextField, Typography,
+} from "@mui/material";
 import {registerTeacher} from "../../services/TeacherService.tsx";
 import GeneralLayout from "../../layouts/GeneralLayout.tsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {SWISS_CANTONS} from "./Cantons.tsx";
+import {Visibility, VisibilityOff} from "@mui/icons-material";
 
 const TeacherRegistrationPage = () => {
     const [loading, setLoading] = useState(false);
@@ -14,6 +21,10 @@ const TeacherRegistrationPage = () => {
         message: "",
         severity: "success" as "success" | "error",
     });
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [privacyDialogOpen, setPrivacyDialogOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
     const handleCloseSnackbar = () => {
         setSnackbar((prev) => ({
             ...prev,
@@ -42,6 +53,10 @@ const TeacherRegistrationPage = () => {
     };
 
     const handleSubmit = async () => {
+        if (!privacyAccepted) {
+            setSnackbar({open: true, message: "Bitte akzeptieren Sie die Datenschutzerklärung.", severity: "error",});
+            return;
+        }
         if (form.password !== form.confirmPassword) {
             setSnackbar({
                 open: true,
@@ -68,17 +83,10 @@ const TeacherRegistrationPage = () => {
             return;
         }
         try {
-            const teacherData = {
-                ...form,
-                userId: userId ? userId : "",
-            };
-
+            setLoading(true);
+            const teacherData = {...form, userId: userId ? userId : "", privacyAccepted: privacyAccepted};
             await registerTeacher(teacherData);
-            setSnackbar({
-                open: true,
-                message: "Registrierung erfolgreich.",
-                severity: "success",
-            });
+            setSnackbar({open: true, message: "Registrierung erfolgreich.", severity: "success",});
             navigate("/teacher/classes");
         } catch (err) {
             console.error(err);
@@ -87,7 +95,8 @@ const TeacherRegistrationPage = () => {
                 message: "Registrierung fehlgeschlagen.",
                 severity: "error",
             });
-        }
+        } finally {
+        setLoading(false);}
     };
 
     if (loading) {
@@ -127,11 +136,29 @@ const TeacherRegistrationPage = () => {
                         <TextField
                             label="Passwort"
                             name="password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={form.password}
                             onChange={handleChange}
                             required
-                        />
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                onClick={() => setShowPassword((prev) => !prev)}
+                                                edge="end"
+                                                aria-label={
+                                                    showPassword
+                                                        ? "Passwort ausblenden"
+                                                        : "Passwort anzeigen"
+                                                }
+                                            >
+                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}></TextField>
 
                         <TextField
                             label="Passwort bestätigen"
@@ -190,17 +217,61 @@ const TeacherRegistrationPage = () => {
                                 ))}
                             </Select>
                         </FormControl>
+                        <FormControlLabel
+                            control={<Checkbox checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)}/>}
+                            label={
+                                <Typography variant="body2">
+                                    Ich habe die{" "}
+                                    <Link
+                                        component="button"
+                                        type="button"
+                                        underline="always"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setPrivacyDialogOpen(true);
+                                        }}
+                                        sx={{verticalAlign: "baseline", cursor: "pointer", color: "primary.main", fontWeight: 600, borderRadius: 1, px: 0.5, transition: "all 0.2s ease", "&:hover": {color: "primary.dark", backgroundColor: "action.hover", textDecorationThickness: "2px",},}}>
+                                        Datenschutzerklärung
+                                    </Link>{" "}
+                                    gelesen und akzeptiere diese.
+                                </Typography>
+                            }
+                        />
 
-                        <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                        >
+                        <Button variant="contained" onClick={handleSubmit} disabled={!privacyAccepted}>
                             Registrieren
                         </Button>
                     </Box>
                 </CardContent>
             </Card>
         </Box>
+            <Dialog open={privacyDialogOpen} onClose={() => setPrivacyDialogOpen(false)} fullWidth maxWidth="md">
+                <DialogTitle>
+                    Datenschutzerklärung
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Typography paragraph>
+                        Hier steht deine Datenschutzerklärung.
+                    </Typography>
+
+                    <Typography paragraph>
+                        Du kannst hier den vollständigen Text zur Verarbeitung
+                        personenbezogener Daten, zur Speicherdauer, zu den
+                        Verantwortlichen und zu den Rechten der Lehrpersonen einfügen.
+                    </Typography>
+
+                    <Typography paragraph>
+                        Weitere Informationen zum Datenschutz können hier ergänzt werden.
+                    </Typography>
+                </DialogContent>
+
+                <DialogActions>
+                    <Button onClick={() => setPrivacyDialogOpen(false)}>
+                        Schließen
+                    </Button>
+                </DialogActions>
+            </Dialog>
             <Snackbar open={snackbar.open} autoHideDuration={5000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
                     {snackbar.message}

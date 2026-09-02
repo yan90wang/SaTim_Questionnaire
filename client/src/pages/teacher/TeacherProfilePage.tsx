@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
 import {
     Box,
+    Button,
     Card,
     CardContent,
-    CardHeader, FormControl, InputLabel,
+    CardHeader, CircularProgress, FormControl, InputLabel,
     MenuItem,
     Select,
     TextField,
     Typography,
 } from "@mui/material";
 import TeacherLayout from "../../layouts/TeacherLayout.tsx";
-import {getTeacherById, type Teacher} from "../../services/TeacherService.tsx";
+import {getTeacherById, type Teacher, updateTeacher} from "../../services/TeacherService.tsx";
 import { SWISS_CANTONS } from "./Cantons.tsx";
 
 const TeacherProfilePage = () => {
@@ -63,6 +64,40 @@ const TeacherProfilePage = () => {
         }));
     };
 
+    const handleSave = async () => {
+        if (!teacherId) return;
+        setIsLoading(true);
+
+        try {
+            const updatedTeacher = await updateTeacher(
+                teacherId,
+                {
+                    first_name: teacher.first_name,
+                    last_name: teacher.last_name,
+                    email: teacher.email,
+                    school_name: teacher.school_name,
+                    school_address: teacher.school_address,
+                    canton: teacher.canton
+                }
+            );
+            setTeacher(updatedTeacher);
+        } catch (err) {
+            console.error("Failed to update teacher:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <TeacherLayout>
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+                    <CircularProgress />
+                </Box>
+            </TeacherLayout>
+        );
+    }
+
     return (
         <TeacherLayout>
             <Box>
@@ -112,7 +147,7 @@ const TeacherProfilePage = () => {
                             type="email"
                             value={teacher.email}
                             fullWidth
-                            disabled={isLoading}
+                            disabled={true}
                             onChange={(e) =>
                                 handleChange(
                                     "email",
@@ -169,6 +204,13 @@ const TeacherProfilePage = () => {
                                 ))}
                             </Select>
                         </FormControl>
+                        <Button
+                            variant="contained"
+                            onClick={handleSave}
+                            disabled={isLoading}
+                            sx={{alignSelf: "flex-start"}}>
+                            Änderungen speichern
+                        </Button>
                     </CardContent>
                 </Card>
             </Box>
