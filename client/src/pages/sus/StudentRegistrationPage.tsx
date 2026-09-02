@@ -100,7 +100,10 @@ const StudentRegistrationPage = () => {
             console.error(err);
             setSnackbar({
                 open: true,
-                message: "Registrierung fehlgeschlagen.",
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : "Registrierung fehlgeschlagen.",
                 severity: "error",
             });
         }

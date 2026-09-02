@@ -64,13 +64,24 @@ export const registerStudent = async (
             token,
             studentId: student.id,
         });
-    } catch (err) {
-        console.error(err);
+    }  catch (err) {
+    console.error(err);
+    if (err instanceof Error) {
+        if (err.message === "Email already exists") {
+            return res.status(409).json({message: "Diese E-Mail-Adresse ist bereits registriert.",});}
 
-        res.status(500).json({
-            message: "Registration failed",
-        });
+        if (err.message === "Invalid registration token") {
+            return res.status(400).json({message: "Der Registrierungslink ist ungültig.",});}
+
+        if (err.message === "Consent required") {
+            return res.status(400).json({message: "Bitte bestätige die Datenschutzbestimmungen.",});
+        }
     }
+
+    return res.status(500).json({
+        message: "Registrierung fehlgeschlagen.",
+    });
+}
 };
 
 export const loginStudent = async (
@@ -153,27 +164,15 @@ export const getAssignedTests = async (
 ) => {
     try {
         const studentId = req.studentId;
-
         if (!studentId) {return res.status(401).json({message: "Unauthorized",});}
-
         const tests = await getAssignedTestsService(studentId);
-
         return res.json(tests);
     } catch (err) {
         console.error("Failed to get assigned tests:", err);
-
-        if (
-            err instanceof Error &&
-            err.message === "Student not found"
-        ) {
-            return res.status(404).json({
-                message: "Student not found",
-            });
+        if (err instanceof Error && err.message === "Student not found") {
+            return res.status(404).json({message: "Student not found",});
         }
-
-        return res.status(500).json({
-            message: "Failed to fetch assigned tests",
-        });
+        return res.status(500).json({message: "Failed to fetch assigned tests",});
     }
 };
 

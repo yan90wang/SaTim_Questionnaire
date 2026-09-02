@@ -187,6 +187,7 @@ model answer {
   updatedAt        DateTime         @updatedAt
   endedAt          DateTime?
   freeParam        String?
+  quizFinished     Boolean          @default(false)
 
   survey   survey         @relation("BelogsToSurvey", fields: [surveyId], references: [id])
   instance surveyInstance @relation("BelongsToInstance", fields: [instanceId], references: [id])
@@ -211,6 +212,7 @@ model adaptiveAnswer {
   currentQuestionId Int?
   knowledgeSpace    Json
   itemColumns       Int[]
+  quizFinished      Boolean          @default(false)
 
   survey         survey         @relation(fields: [surveyId], references: [id])
   surveyInstance surveyInstance @relation("BelongsToAdaptiveInstance", fields: [surveyInstanceId], references: [id])

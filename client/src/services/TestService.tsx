@@ -16,7 +16,8 @@ export interface TeacherTest {
 
     status: string;
     mode: string;
-
+    finishedStudents: number;
+    totalStudents: number;
     active: boolean;
 
     createdAt: string;

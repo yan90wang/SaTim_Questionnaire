@@ -123,28 +123,17 @@ export const getClass = async (req: Request<{ id: string }>, res: Response) => {
 export const getClassTests = async (req: Request, res: Response) => {
     try {
         const teacherId = req.teacherId;
-
         if (!teacherId) {
-            return res.status(401).json({
-                message: "Unauthorized",
-            });
+            return res.status(401).json({message: "Unauthorized",});
         }
-
         const tests = await getClassTestsService(teacherId);
-
         return res.json(tests);
     } catch (err) {
         console.error(err);
-        if (err instanceof Error && err.message === "Unauthorized"
-        ) {
-            return res.status(403).json({
-                message: "You are not allowed to access this class",
-            });
+        if (err instanceof Error && err.message === "Unauthorized") {
+            return res.status(403).json({message: "You are not allowed to access this class",});
         }
-
-        return res.status(500).json({
-            message: "Failed to fetch class tests",
-        });
+        return res.status(500).json({message: "Failed to fetch class tests",});
     }
 };
 

@@ -176,7 +176,7 @@ export const getClassTestsService = async (teacherId: number) => {
             },
             survey: {
                 teacherAssigned: true,
-            }
+            },
         },
         include: {
             survey: {
@@ -193,6 +193,11 @@ export const getClassTestsService = async (teacherId: number) => {
                     id: true,
                     name: true,
                     type: true,
+                    student: {
+                        select: {
+                            id: true,
+                        },
+                    },
                 },
             },
         },
@@ -201,25 +206,62 @@ export const getClassTestsService = async (teacherId: number) => {
         },
     });
 
-    return instances.map((instance) => ({
-        id: instance.id,
-        surveyId: instance.surveyId,
-        classId: instance.classId,
+    return Promise.all(
+        instances.map(async (instance) => {
+            const studentIds = instance.schoolClass.student.map(
+                (student) => String(student.id)
+            );
 
-        className: instance.schoolClass.name,
-        classType: instance.schoolClass.type,
+            let finishedStudents = 0;
 
-        title: instance.survey.title,
-        description: instance.survey.description,
+            if (studentIds.length > 0) {
+                if (instance.survey.mode === "ADAPTIV") {
+                    finishedStudents = await prisma.adaptiveAnswer.count({
+                        where: {
+                            surveyId: instance.surveyId,
+                            userId: {
+                                in: studentIds,
+                            },
+                            quizFinished: true,
+                        },
+                    });
+                } else {
+                    finishedStudents = await prisma.answer.count({
+                        where: {
+                            surveyId: instance.surveyId,
+                            userId: {
+                                in: studentIds,
+                            },
+                            quizFinished: true,
+                        },
+                    });
+                }
+            }
 
-        status: instance.survey.status,
-        mode: instance.survey.mode,
+            return {
+                id: instance.id,
+                surveyId: instance.surveyId,
+                classId: instance.classId,
 
-        active: instance.active,
+                className: instance.schoolClass.name,
+                classType: instance.schoolClass.type,
 
-        createdAt: instance.createdAt,
-        updatedAt: instance.updatedAt,
-    }));
+                title: instance.survey.title,
+                description: instance.survey.description,
+
+                status: instance.survey.status,
+                mode: instance.survey.mode,
+
+                active: instance.active,
+
+                finishedStudents,
+                totalStudents: instance.schoolClass.student.length,
+
+                createdAt: instance.createdAt,
+                updatedAt: instance.updatedAt,
+            };
+        })
+    );
 };
 
 export const activateClassTestService = async (

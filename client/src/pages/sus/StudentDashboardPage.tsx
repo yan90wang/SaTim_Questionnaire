@@ -92,25 +92,16 @@ const StudentDashboardPage = () => {
                                                     {new Date(test.validTo).toLocaleDateString()}
                                                 </Typography>
                                                 <Chip
-                                                    label={test.status === "OPEN" ? "Offen" : test.status === "UPCOMING" ? "Noch nicht verfügbar" : "Abgeschlossen"}
-                                                    color={test.status === "OPEN" ? "info" : test.status === "UPCOMING" ? "warning" : "default"}
+                                                    label={test.status === "OPEN" ? "Offen" : test.status === "IN_PROGRESS" ? "In Bearbeitung" : "Abgeschlossen"}
+                                                    color={test.status === "OPEN" ? "info" : test.status === "IN_PROGRESS" ? "warning" : "default"}
                                                 />
                                             </Box>
 
                                             <Box display="flex" flexDirection="column" gap={1} alignItems="flex-end">
 
-                                                <Button
-                                                    variant="contained"
-                                                    disabled={test.status !== "OPEN"}
-                                                    onClick={() =>
-                                                        navigate(`/quiz/${test.instanceId}`)
-                                                    }
-                                                >
-                                                    {test.status === "OPEN"
-                                                        ? "Starten"
-                                                        : test.status === "UPCOMING"
-                                                            ? "Noch nicht verfügbar"
-                                                            : "Abgeschlossen"}
+                                                <Button variant="contained"
+                                                    onClick={() => navigate(`/quiz/${test.instanceId}`)}>
+                                                    {"Test bearbeiten"}
                                                 </Button>
                                             </Box>
                                         </CardContent>

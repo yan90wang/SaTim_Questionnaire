@@ -29,20 +29,14 @@ export interface StudentLoginResponse {
 
 export interface StudentTest {
     id: number;
-
     instanceId: number;
     surveyId: number;
     classId: number;
-
     title: string;
     description?: string | null;
-
     name: string;
-
     mode: string;
-
-    status: "OPEN" | "UPCOMING" | "FINISHED";
-
+    status: "OPEN" | "IN_PROGRESS" | "FINISHED";
     validFrom: string;
     validTo: string;
 }
@@ -58,16 +52,10 @@ export const registerStudent = async (data: RegisterStudentRequest) => {
             body: JSON.stringify(data),
         }
     );
-    if (!response.ok) {
-        const error = await response.json();
-
-        throw new Error(
-            error.message || "Registration failed"
-        );
-    }
-
     const result = await response.json();
-    console.log(result);
+    if (!response.ok) {
+        throw new Error(result.message || "Registrierung fehlgeschlagen.");
+    }
     saveStudentSession(result);
     return result;
 };

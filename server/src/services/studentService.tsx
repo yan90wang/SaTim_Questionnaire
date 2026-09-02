@@ -38,20 +38,10 @@ export const registerStudentService = async ({email, password, birthday, registr
         throw new Error("Consent required");
     }
 
-    const existing = await prisma.student.findFirst({
-        where: {
-            email,
-        },
-    });
-
-    if (existing) {
-        throw new Error("Email already exists");
-    }
-
+    const existing = await prisma.student.findFirst({where: {email,},});
+    if (existing) {throw new Error("Email already exists");}
     const schoolClass = await prisma.schoolClass.findUnique({
-        where: {
-            registrationToken,
-        },
+        where: {registrationToken,},
     });
 
     if (!schoolClass) {
@@ -119,40 +109,35 @@ export const getAssignedTestsService = async (studentId: number) => {
         },
     });
 
-    if (!student) {
-        throw new Error("Student not found");
-    }
-
-    if (!student.classId) {
-        return [];
-    }
-
+    if (!student) {throw new Error("Student not found");}
+    if (!student.classId) {return [];}
     const now = new Date();
-
     const classTests = await prisma.classTestInstance.findMany({
         where: {
             classId: student.classId,
             active: true,
             survey: {
                 teacherAssigned: true,
-            }
+            },
         },
         include: {
             survey: {
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    mode: true,
-
+                select: {id: true, title: true, description: true, mode: true,
                     instances: {
                         where: {
-                            validTo: {
-                                gte: now,
-                            },
+                            validFrom: {lte: now,},
+                            validTo: {gte: now,},
                         },
-                        orderBy: {
-                            validFrom: "asc",
+                        orderBy: {validFrom: "asc",},
+                        include: {
+                            answer: {
+                                where: {userId: String(studentId),},
+                                select: {id: true, quizFinished: true,},
+                            },
+                            adaptiveAnswer: {
+                                where: {userId: String(studentId),},
+                                select: {id: true, quizFinished: true,},
+                            },
                         },
                     },
                 },
@@ -165,12 +150,14 @@ export const getAssignedTestsService = async (studentId: number) => {
 
     return classTests.flatMap((classTest) =>
         classTest.survey.instances.map((instance) => {
-            let status: "OPEN" | "UPCOMING" | "FINISHED";
-
-            if (now < instance.validFrom) {
-                status = "UPCOMING";
-            } else if (now > instance.validTo) {
+            let status: | "OPEN" | "IN_PROGRESS" | "FINISHED";
+            const answer = instance.answer[0];
+            const adaptiveAnswer = instance.adaptiveAnswer[0];
+            const existingAnswer = answer ?? adaptiveAnswer;
+            if (existingAnswer?.quizFinished) {
                 status = "FINISHED";
+            } else if (existingAnswer) {
+                status = "IN_PROGRESS";
             } else {
                 status = "OPEN";
             }
@@ -178,19 +165,14 @@ export const getAssignedTestsService = async (studentId: number) => {
             return {
                 id: classTest.id,
                 instanceId: instance.id,
-
                 surveyId: classTest.surveyId,
                 classId: classTest.classId,
-
                 title: classTest.survey.title,
                 description: classTest.survey.description,
                 mode: classTest.survey.mode,
-
                 name: instance.name,
-
                 validFrom: instance.validFrom,
                 validTo: instance.validTo,
-
                 status,
             };
         })

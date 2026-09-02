@@ -46,11 +46,7 @@ const TestDashboardPage = () => {
      */
     const filteredTests = useMemo(() => {
         const searchValue = search.toLowerCase().trim();
-
-        if (!searchValue) {
-            return tests;
-        }
-
+        if (!searchValue) {return tests;}
         return tests.filter((test) =>
             test.title.toLowerCase().includes(searchValue));
     }, [tests, search]);
@@ -61,9 +57,7 @@ const TestDashboardPage = () => {
                 if (!groups[test.className]) {
                     groups[test.className] = [];
                 }
-
                 groups[test.className].push(test);
-
                 return groups;
             },
             {}
@@ -214,7 +208,13 @@ const TestDashboardPage = () => {
                                                             </Box>
 
                                                             <Box component="td" sx={{p: 1.5,}}>
-                                                              //TODO add results
+                                                                <Typography variant="body2" fontWeight={500}>
+                                                                    {test.finishedStudents} / {test.totalStudents}
+                                                                </Typography>
+
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    abgeschlossen
+                                                                </Typography>
                                                             </Box>
 
                                                             {/* Action */}

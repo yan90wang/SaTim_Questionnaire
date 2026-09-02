@@ -106,7 +106,16 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
     const probs = adaptiveAnswer.adaptiveProbs as number[];
     let nextQuestion: QuizQuestion | null = null;
     const threshold = survey.adaptiveThreshold;
-    if (threshold !== null && probs.some(prob => prob >= threshold)) {return {
+    if (threshold !== null && probs.some(prob => prob >= threshold)) {
+        await prisma.adaptiveAnswer.update({
+            where: {
+                id: adaptiveAnswer.id,
+            },
+            data: {
+                quizFinished: true
+            },
+        });
+        return {
             surveyId: survey.id,
             surveyTitle: survey.title,
             instanceId: instance.id,
@@ -283,6 +292,16 @@ const getDesignQuiz = async (survey: survey, instance: surveyInstance, userId: s
         id: nextQuestion?.id,
         contentJson: nextQuestion?.contentJson
     } : null;
+    if (totalQuestions === answeredQuestionIds.length) {
+        await prisma.answer.update({
+            where: {
+                id: answerRecord.id,
+            },
+            data: {
+                quizFinished: true
+            },
+        });
+    }
     return {
         isAdaptive: false,
         surveyId: survey.id,
