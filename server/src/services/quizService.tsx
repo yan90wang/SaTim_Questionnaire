@@ -515,7 +515,7 @@ export async function trackQuestionTime(userId: string, questionId: number, inst
             }
         }
     })
-    if (!answer) return
+    if (answer) {
     await prisma.questionAnswer.update({
         where: {
             answerId_questionId: {
@@ -528,7 +528,38 @@ export async function trackQuestionTime(userId: string, questionId: number, inst
                 increment: seconds
             }
         }
-    })
+    })}
+
+    const adaptiveAnswer = await prisma.adaptiveAnswer.findFirst({
+        where: {
+            userId,
+            surveyInstanceId: instanceId,
+            questionIds: {
+                has: questionId,
+            },
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!adaptiveAnswer || answer) {
+        return;
+    }
+
+    await prisma.questionAnswer.update({
+        where: {
+            adaptiveAnswerId_questionId: {
+                adaptiveAnswerId: adaptiveAnswer.id,
+                questionId,
+            },
+        },
+        data: {
+            solvedTime: {
+                increment: seconds,
+            },
+        },
+    });
 }
 
 export async function startQuestionSession(userId: string, questionId: number, instanceId: number) {
@@ -615,25 +646,32 @@ export async function endQuizSession(userId: string, instanceId: number) {
     });
 }
 
-export const saveFeedback = async ({instanceId, questionId, userId, feedback,}: {
-    instanceId: number;
-    questionId: number;
-    userId: string;
-    feedback: Record<string, string>;
-}) => {
+export const saveFeedback = async ({instanceId, questionId, userId, feedback,}: { instanceId: number; questionId: number; userId: string; feedback: Record<string, string>; }) => {
     const answerRecord = await prisma.answer.findFirst({
         where: {userId, instanceId,},
         include: {questionsAnswers: true,},
     });
-    if (!answerRecord) {
+    const adaptiveAnswerRecord = !answerRecord
+        ? await prisma.adaptiveAnswer.findFirst({
+            where: {
+                userId,
+                surveyInstanceId: instanceId,
+            },
+            include: {
+                questionsAnswers: true,
+            },
+        })
+        : null;
+
+    if (!answerRecord && !adaptiveAnswerRecord) {
         throw new Error("ANSWER_RECORD_NOT_FOUND");
     }
-    let questionAnswer = answerRecord.questionsAnswers.find(
-        qa => qa.questionId === questionId
-    );
+    const questionsAnswers = answerRecord?.questionsAnswers ?? adaptiveAnswerRecord?.questionsAnswers ?? [];
+    const questionAnswer = questionsAnswers.find(qa => qa.questionId === questionId);
     if (!questionAnswer) {
         throw new Error("ANSWER_QUESTIONS_RECORD_NOT_FOUND");
     }
+
     const operations = Object.entries(feedback).map(([key, value]) =>
         prisma.feedbackAnswer.upsert({
             where: {
