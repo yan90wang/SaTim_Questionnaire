@@ -36,7 +36,8 @@ interface Student {
 }
 
 const ClassPage = () => {
-    const {id} = useParams();
+    const {id, teacherId} = useParams();
+    const isAdminView = !!teacherId;
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
@@ -59,7 +60,9 @@ const ClassPage = () => {
         if (!birthday) return null;
         const birthDate = new Date(`${birthday}T00:00:00`);
         const today = new Date();
-        if (isNaN(birthDate.getTime())) {return null;}
+        if (isNaN(birthDate.getTime())) {
+            return null;
+        }
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDifference = today.getMonth() - birthDate.getMonth();
         if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())
@@ -77,18 +80,19 @@ const ClassPage = () => {
 
             try {
                 setLoading(true);
-                const classData = await getClass(Number(id));
+                const classData = await getClass(Number(id), teacherId, isAdminView);
                 setSchoolClass(classData);
             } catch (err) {
                 console.error(err);
-                setSnackbar({open: true, message: "Klasse konnte nicht geladen werden.", severity: "error",
+                setSnackbar({
+                    open: true, message: "Klasse konnte nicht geladen werden.", severity: "error",
                 });
             } finally {
                 setLoading(false);
             }
         };
         load();
-    }, [id]);
+    }, [id, teacherId]);
 
 
     useEffect(() => {
@@ -96,18 +100,19 @@ const ClassPage = () => {
             if (!id) return;
             try {
                 setLoadingSuS(true);
-                const studentData = await getStudents(Number(id));
+                const studentData = await getStudents(Number(id), teacherId, isAdminView);
                 setStudents(studentData);
             } catch (err) {
                 console.error(err);
-                setSnackbar({open: true, message: "SuS konnten nicht geladen werden.", severity: "error",
+                setSnackbar({
+                    open: true, message: "SuS konnten nicht geladen werden.", severity: "error",
                 });
             } finally {
                 setLoadingSuS(false);
             }
         };
         loadSuS();
-    }, [id]);
+    }, [id, teacherId]);
 
     const handleRegisterUnder14 = async () => {
         if (!schoolClass) return;
@@ -119,14 +124,17 @@ const ClassPage = () => {
 
         try {
             setRegisteringUnder14(true);
-            const result = await registerUnder14Student(schoolClass.id, under14Birthday);
+            const result = await registerUnder14Student(schoolClass.id, under14Birthday, teacherId, isAdminView);
             setGeneratedCredentials({email: result.email, password: result.password,});
-            const updatedStudents = await getStudents(schoolClass.id);
+            const updatedStudents = await getStudents(schoolClass.id, teacherId, isAdminView);
             setStudents(updatedStudents);
             setSnackbar({open: true, message: "Schüler erfolgreich registriert.", severity: "success",});
         } catch (err) {
             console.error(err);
-            setSnackbar({open: true, message: err instanceof Error ? err.message : "Schüler konnte nicht registriert werden.", severity: "error",
+            setSnackbar({
+                open: true,
+                message: err instanceof Error ? err.message : "Schüler konnte nicht registriert werden.",
+                severity: "error",
             });
         } finally {
             setRegisteringUnder14(false);
@@ -135,7 +143,7 @@ const ClassPage = () => {
 
     if (loading || loadingSuS) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
                 <Box display="flex" justifyContent="center" mt={10}>
                     <CircularProgress/>
                 </Box>
@@ -145,7 +153,7 @@ const ClassPage = () => {
 
     if (!schoolClass) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
                 <Typography>Klasse nicht gefunden.</Typography>
             </TeacherLayout>
         );
@@ -155,14 +163,25 @@ const ClassPage = () => {
         `${window.location.origin}/student/register/${schoolClass.registrationToken}`;
 
     return (
-        <TeacherLayout>
+        <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
             <Box sx={{maxWidth: 1000, mx: "auto", py: 3}}>
 
-                <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({...snackbar, open: false,})}>
-                    <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar({...snackbar, open: false,})}>{snackbar.message}</Alert>
+                <Snackbar open={snackbar.open} autoHideDuration={4000}
+                          onClose={() => setSnackbar({...snackbar, open: false,})}>
+                    <Alert severity={snackbar.severity} variant="filled"
+                           onClose={() => setSnackbar({...snackbar, open: false,})}>{snackbar.message}</Alert>
                 </Snackbar>
 
-                <Button startIcon={<ArrowBack/>} onClick={() => navigate("/teacher/classes")} sx={{mb: 2}}>
+                <Button
+                    startIcon={<ArrowBack />}
+                    onClick={() => {
+                        if (isAdminView && teacherId) {
+                            navigate(`/admin/teacher/${teacherId}/classes`);
+                        } else {
+                            navigate("/teacher/classes");
+                        }
+                    }}
+                    sx={{ mb: 2 }}>
                     Zurück
                 </Button>
 
@@ -189,12 +208,19 @@ const ClassPage = () => {
                         </Typography>
 
                         <Box display="flex" gap={2}>
-                            <TextField fullWidth value={registrationLink} slotProps={{input: {
-                                readOnly: true,},}}/>
+                            <TextField fullWidth value={registrationLink} slotProps={{
+                                input: {
+                                    readOnly: true,
+                                },
+                            }}/>
                             <IconButton
                                 onClick={() => {
                                     navigator.clipboard.writeText(registrationLink);
-                                    setSnackbar({open: true, message: "Registrierungslink kopiert.", severity: "success",});
+                                    setSnackbar({
+                                        open: true,
+                                        message: "Registrierungslink kopiert.",
+                                        severity: "success",
+                                    });
                                 }}>
                                 <ContentCopy/>
                             </IconButton>
@@ -202,7 +228,11 @@ const ClassPage = () => {
                         <Button
                             variant="outlined"
                             sx={{mt: 2}}
-                            onClick={() => {setUnder14Birthday("");setGeneratedCredentials(null);setUnder14DialogOpen(true);}}>
+                            onClick={() => {
+                                setUnder14Birthday("");
+                                setGeneratedCredentials(null);
+                                setUnder14DialogOpen(true);
+                            }}>
                             Schüler unter 14 registrieren
                         </Button>
                     </CardContent>
@@ -245,7 +275,9 @@ const ClassPage = () => {
                 </Card>
             </Box>
             <Dialog open={under14DialogOpen} onClose={() => {
-                if (!registeringUnder14) {setUnder14DialogOpen(false);}
+                if (!registeringUnder14) {
+                    setUnder14DialogOpen(false);
+                }
             }} fullWidth maxWidth="sm">
                 <DialogTitle>
                     Schüler unter 14 registrieren
@@ -254,7 +286,8 @@ const ClassPage = () => {
                     {!generatedCredentials ? (
                         <>
                             <Typography sx={{mb: 2}}>
-                                Bitte geben Sie das Geburtsdatum des Schülers ein. Das System generiert anschliessend die Zugangsdaten, die Sie dem Schüler bzw. der Schülerin weitergeben können.
+                                Bitte geben Sie das Geburtsdatum des Schülers ein. Das System generiert anschliessend
+                                die Zugangsdaten, die Sie dem Schüler bzw. der Schülerin weitergeben können.
                             </Typography>
 
                             <TextField
@@ -338,7 +371,11 @@ const ClassPage = () => {
                         </>
                     ) : (
                         <Button
-                            onClick={() => {setUnder14DialogOpen(false);setGeneratedCredentials(null);setUnder14Birthday("");}}>
+                            onClick={() => {
+                                setUnder14DialogOpen(false);
+                                setGeneratedCredentials(null);
+                                setUnder14Birthday("");
+                            }}>
                             Schliessen
                         </Button>
                     )}

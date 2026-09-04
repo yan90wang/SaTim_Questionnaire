@@ -1,4 +1,5 @@
-import { teacherAuthFetch } from "./TeacherAuthFetchHelper.tsx";
+import { classAuthFetch } from "./TeacherAuthFetchHelper.tsx";
+
 // @ts-ignore
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -23,6 +24,7 @@ export interface Student {
 export interface CreateSchoolClassRequest {
     name: string;
     type: string;
+    teacherId?: number;
 }
 
 export interface UpdateSchoolClassRequest {
@@ -30,40 +32,24 @@ export interface UpdateSchoolClassRequest {
     type: string;
 }
 
-const getToken = () => localStorage.getItem("teacherToken");
+export const getClasses = async (teacherId?: string, isAdminView = false): Promise<SchoolClass[]> => {
+    const url = isAdminView ? `${API_URL}/api/admin/teacher/${teacherId}/classes` : `${API_URL}/api/schoolclass/list`;
 
-export const getClasses = async (teacherId?: string): Promise<SchoolClass[]> => {
-    const url =
-        teacherId !== undefined
-            ? `${API_URL}/api/schoolclass/list/${teacherId}`
-            : `${API_URL}/api/schoolclass/list`;
-
-    const token = teacherId ? localStorage.getItem("token") : localStorage.getItem("teacherToken");
-
-    const response = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
+    const response = await classAuthFetch(url, {method: "GET",}, isAdminView);
 
     if (!response.ok) {
         throw new Error("Failed to fetch classes");
     }
+
     return response.json();
 };
 
-export const getClass = async (
-    classId: number
-): Promise<SchoolClass> => {
-    const response = await teacherAuthFetch(
-        `${API_URL}/api/schoolclass/${classId}`,
-        {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${getToken()}`,
-            },
-        }
-    );
+export const getClass = async (classId: number, teacherId?: string, isAdminView = false): Promise<SchoolClass> => {
+    const url = isAdminView
+        ? `${API_URL}/api/admin/teacher/${teacherId}/classes/${classId}`
+        : `${API_URL}/api/schoolclass/${classId}`;
+
+    const response = await classAuthFetch(url, {method: "GET",}, isAdminView);
 
     if (!response.ok) {
         throw new Error("Failed to fetch class");
@@ -72,19 +58,8 @@ export const getClass = async (
     return response.json();
 };
 
-export const getStudents = async (
-    classId: number
-): Promise<Student[]> => {
-    const response = await teacherAuthFetch(
-        `${API_URL}/api/student/${classId}`,
-        {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${getToken()}`,
-            },
-        }
-    );
-
+export const getStudents = async (classId: number, teacherId? : string, isAdminView = false): Promise<Student[]> => {
+    const response = await classAuthFetch(`${API_URL}/api/student/${classId}`, {method: "GET",}, isAdminView);
     if (!response.ok) {
         throw new Error("Failed to fetch students");
     }
@@ -92,21 +67,22 @@ export const getStudents = async (
     return response.json();
 };
 
-export const createClass = async (
-    data: CreateSchoolClassRequest
-) => {
-    const response = await teacherAuthFetch(`${API_URL}/api/schoolclass`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getToken()}`,
+export const createClass = async (data: CreateSchoolClassRequest, adminView = false) => {
+    const response = await classAuthFetch(
+        `${API_URL}/api/schoolclass`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
         },
-        body: JSON.stringify(data),
-    });
+        adminView
+    );
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create class");
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || "Failed to create class");
     }
 
     return response.json();
@@ -114,42 +90,41 @@ export const createClass = async (
 
 export const updateClass = async (
     classId: number,
-    data: UpdateSchoolClassRequest
+    data: UpdateSchoolClassRequest,
+    adminView = false
 ) => {
-    const response = await teacherAuthFetch(
+    const response = await classAuthFetch(
         `${API_URL}/api/schoolclass/${classId}`,
         {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
             },
             body: JSON.stringify(data),
-        }
+        },
+        adminView
     );
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update class");
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || "Failed to update class");
     }
 
     return response.json();
 };
 
-export const deleteClass = async (classId: number) => {
-    const response = await teacherAuthFetch(
+export const deleteClass = async (classId: number, adminView = false) => {
+    const response = await classAuthFetch(
         `${API_URL}/api/schoolclass/${classId}`,
         {
             method: "DELETE",
-            headers: {
-                Authorization: `Bearer ${getToken()}`,
-            },
-        }
+        },
+        adminView
     );
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete class");
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || "Failed to delete class");
     }
 
     return response.json();
@@ -165,26 +140,30 @@ export interface Under14RegistrationResult {
 
 export const registerUnder14Student = async (
     classId: number,
-    birthday: string
+    birthday: string,
+    teacherId?:string,
+    isAdminView = false
 ): Promise<Under14RegistrationResult> => {
-    const response = await teacherAuthFetch(
+    const response = await classAuthFetch(
         `${API_URL}/api/schoolclass/${classId}/register-under-14`,
         {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
             },
-            body: JSON.stringify({
-                birthday,
-            }),
-        }
+            body: JSON.stringify({birthday,}),
+        },
+        isAdminView
     );
 
     if (!response.ok) {
         const error = await response.json().catch(() => null);
-        throw new Error(error?.message || "Schüler konnte nicht registriert werden.");
+
+        throw new Error(
+            error?.message ||
+            "Schüler konnte nicht registriert werden."
+        );
     }
 
-    return await response.json();
+    return response.json();
 };

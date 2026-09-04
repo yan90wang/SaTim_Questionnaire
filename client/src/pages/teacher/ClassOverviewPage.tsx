@@ -32,7 +32,7 @@ enum SchoolClassType {
     SEK_7 = "SEK_7",
     SEK_8 = "SEK_8",
     SEK_9 = "SEK_9",
-};
+}
 
 const ClassOverviewPage = () => {
     const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -43,11 +43,12 @@ const ClassOverviewPage = () => {
     const navigate = useNavigate();
     const { teacherId } = useParams();
     const [customType, setCustomType] = useState("");
+    const isAdminView = !!teacherId;
 
     const fetchClasses = async () => {
         setLoading(true);
         try {
-            const data = await getClasses(teacherId);
+            const data = await getClasses(teacherId, isAdminView);
             setClasses(data);
         } catch (err) {
             console.error(err);
@@ -63,7 +64,7 @@ const ClassOverviewPage = () => {
 
     useEffect(() => {
         fetchClasses();
-    }, []);
+    }, [teacherId]);
 
     const handleCreateClass = async () => {
         if (newClass.type === "CUSTOM" && customType.trim() === "") {
@@ -71,10 +72,12 @@ const ClassOverviewPage = () => {
             return;
         }
         try {
-            await createClass({
-                name: newClass.name,
-                type: newClass.type === "CUSTOM" ? customType : newClass.type,
-            });
+            await createClass(
+                {
+                    name: newClass.name,
+                    type: newClass.type === "CUSTOM" ? customType : newClass.type,
+                    teacherId: isAdminView && teacherId ? Number(teacherId) : undefined,
+                },     isAdminView);
             setSnackbar({
                 open: true,
                 message: "Klasse erfolgreich erstellt.",
@@ -89,25 +92,28 @@ const ClassOverviewPage = () => {
             fetchClasses();
         } catch (err) {
             console.error(err);
-
-            setSnackbar({
-                open: true,
-                message: "Klasse konnte nicht erstellt werden.",
-                severity: "error",
-            });
+            setSnackbar({open: true, message: "Klasse konnte nicht erstellt werden.", severity: "error",});
         }
+    };
+
+    const handleOpenClass = (classId: number) => {
+        if (isAdminView && teacherId) {
+            navigate(`/admin/teacher/${teacherId}/class/${classId}`);
+            return;
+        }
+        navigate(`/teacher/class/${classId}`);
     };
 
     if (loading) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
                 <Typography>Loading...</Typography>
             </TeacherLayout>
         );
     }
 
     return (
-        <TeacherLayout>
+        <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
             <Box sx={{minHeight: "100vh",  px: 2}}>
                 <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({...snackbar, open: false,})}>
                     <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar({...snackbar, open: false,})}>{snackbar.message}</Alert>
@@ -144,7 +150,7 @@ const ClassOverviewPage = () => {
 
                                         <Box mt={2} display="flex" gap={1}>
                                             <Button variant="contained" size="small"
-                                                onClick={() => navigate(`/teacher/class/${schoolClass.id}`)}>
+                                                    onClick={() => handleOpenClass(schoolClass.id)}>
                                                 Verwalten
                                             </Button>
                                         </Box>

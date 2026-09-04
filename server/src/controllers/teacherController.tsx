@@ -205,3 +205,4 @@ export const updateTeacher = async (
         return res.status(500).json({message: "Teacher could not be updated",});
     }
 };
+

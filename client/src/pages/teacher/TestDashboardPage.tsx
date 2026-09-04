@@ -16,11 +16,13 @@ import {PlayArrow,} from "@mui/icons-material";
 
 import TeacherLayout from "../../layouts/TeacherLayout";
 import {activateTestId, deactivateTest, getClassTests, type TeacherTest,} from "../../services/TestService";
+import {useParams} from "react-router-dom";
 
 const TestDashboardPage = () => {
     const [tests, setTests] = useState<TeacherTest[]>([]);
     const [search, setSearch] = useState("");
-
+    const {teacherId} = useParams();
+    const isAdminView = !!teacherId;
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: "",
@@ -30,17 +32,15 @@ const TestDashboardPage = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const testData = await getClassTests();
+                const testData = await getClassTests(teacherId, isAdminView);
                 setTests(testData);
             } catch (err) {
                 console.error(err);
                 setSnackbar({open: true, message: "Tests konnten nicht geladen werden.", severity: "error",});
             }
         };
-
         load();
-    }, []);
-
+    }, [teacherId]);
     /**
      * Filter tests by title or class name.
      */
@@ -68,9 +68,9 @@ const TestDashboardPage = () => {
     const handleToggleTest = async (test: TeacherTest) => {
         try {
             if (test.active) {
-                await deactivateTest(test.id);
+                await deactivateTest(test.id, teacherId, isAdminView);
             } else {
-                await activateTestId(test.id);
+                await activateTestId(test.id, teacherId, isAdminView);
             }
             setSnackbar({open: true, message: test.active ? "Test wurde deaktiviert." : "Test wurde aktiviert.", severity: "success",});
             setTests((currentTests) => currentTests.map((currentTest) => currentTest.id === test.id ? {...currentTest, active: !currentTest.active,} : currentTest));
@@ -81,7 +81,7 @@ const TestDashboardPage = () => {
     };
 
     return (
-        <TeacherLayout>
+        <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
             <Box sx={{maxWidth: 1100, mx: "auto", py: 4,}}>
                 <Snackbar
                     open={snackbar.open}

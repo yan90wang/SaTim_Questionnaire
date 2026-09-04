@@ -101,8 +101,9 @@ const TeacherPage = () => {
                                             </Typography>
                                         </Box>
 
-                                        <Button variant="outlined" onClick={() => navigate(`/teacher/classes/${teacher.id}`)}>
-                                            Klassenübersicht
+                                        <Button variant="contained"
+                                            onClick={() => navigate(`/admin/teacher/${teacher.id}/classes`)}>
+                                            Lehrpersonenansicht öffnen
                                         </Button>
                                     </CardContent>
                                 </Card>

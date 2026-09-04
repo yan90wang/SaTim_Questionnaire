@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -7,18 +8,27 @@ import {
     CardHeader, CircularProgress, FormControl, InputLabel,
     MenuItem,
     Select,
+    Snackbar,
     TextField,
     Typography,
 } from "@mui/material";
 import TeacherLayout from "../../layouts/TeacherLayout.tsx";
 import {getTeacherById, type Teacher, updateTeacher} from "../../services/TeacherService.tsx";
 import { SWISS_CANTONS } from "./Cantons.tsx";
+import {useParams} from "react-router-dom";
 
 const TeacherProfilePage = () => {
-    const teacherId = Number(localStorage.getItem("teacherId"));
-
+    const {teacherId: routeTeacherId} = useParams();
+    const isAdminView = !!routeTeacherId;
+    const teacherId = routeTeacherId
+        ? Number(routeTeacherId)
+        : Number(localStorage.getItem("teacherId"));
     const [isLoading, setIsLoading] = useState(false);
-
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: "",
+        severity: "success" as "success" | "error",
+    });
     const [teacher, setTeacher] = useState<Teacher>({
         id: 0,
         first_name: "",
@@ -36,10 +46,14 @@ const TeacherProfilePage = () => {
             setIsLoading(true);
             try {
                 const data = await getTeacherById(teacherId);
-
                 setTeacher(data);
             } catch (err) {
                 console.error("Failed to fetch teacher:", err);
+                setSnackbar({
+                    open: true,
+                    message: "Profil konnte nicht geladen werden.",
+                    severity: "error",
+                });
             } finally {
                 setIsLoading(false);
             }
@@ -81,8 +95,18 @@ const TeacherProfilePage = () => {
                 }
             );
             setTeacher(updatedTeacher);
+            setSnackbar({
+                open: true,
+                message: "Änderungen wurden erfolgreich gespeichert.",
+                severity: "success",
+            });
         } catch (err) {
             console.error("Failed to update teacher:", err);
+            setSnackbar({
+                open: true,
+                message: "Änderungen konnten nicht gespeichert werden.",
+                severity: "error",
+            });
         } finally {
             setIsLoading(false);
         }
@@ -90,7 +114,7 @@ const TeacherProfilePage = () => {
 
     if (isLoading) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={routeTeacherId}>
                 <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
                     <CircularProgress />
                 </Box>
@@ -99,7 +123,7 @@ const TeacherProfilePage = () => {
     }
 
     return (
-        <TeacherLayout>
+        <TeacherLayout adminView={isAdminView} teacherId={routeTeacherId}>
             <Box>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                     <Box>
@@ -214,6 +238,31 @@ const TeacherProfilePage = () => {
                     </CardContent>
                 </Card>
             </Box>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "center",
+                }}
+                onClose={() =>
+                    setSnackbar((prev) => ({
+                        ...prev,
+                        open: false,
+                    }))
+                }>
+                <Alert
+                    severity={snackbar.severity}
+                    variant="filled"
+                    onClose={() =>
+                        setSnackbar((prev) => ({
+                            ...prev,
+                            open: false,
+                        }))
+                    }>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </TeacherLayout>
     );
 };

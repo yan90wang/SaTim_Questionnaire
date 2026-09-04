@@ -41,8 +41,13 @@ function AppRoutes() {
                 <Route path="/teacher/classes" element={<ClassOverviewPage />} />
                 <Route path="/teacher/class/:id" element={<ClassPage/>} />
                 <Route path="/teacher/testboard" element={<TestDashboardPage/>} />
-                <Route path="/teacher/classes/:teacherId" element={<LoggedInRoute><ClassOverviewPage /></LoggedInRoute>}/>
                 <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+
+                {/* ADMIN -> TEACHER VIEW */}
+                <Route path="/admin/teacher/:teacherId/classes" element={<LoggedInRoute><ClassOverviewPage /></LoggedInRoute>}/>
+                <Route path="/admin/teacher/:teacherId/class/:id" element={<LoggedInRoute><ClassPage /></LoggedInRoute>}/>
+                <Route path="/admin/teacher/:teacherId/testboard" element={<LoggedInRoute><TestDashboardPage /></LoggedInRoute>}/>
+                <Route path="/admin/teacher/:teacherId/profile" element={<LoggedInRoute><TeacherProfilePage /></LoggedInRoute>}/>
 
                 {/* STUDENT TODO ADD AUTH */}
                 <Route path="/student/tests" element={<StudentDashboardPage />} />
