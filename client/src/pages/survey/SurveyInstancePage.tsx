@@ -49,6 +49,7 @@ interface SurveyDetail {
     hasBooklet?: boolean;
     knowledgeSpaceFileUrl?: string;
     probabilityDistributionFileUrl?: string | null;
+    betaEtaFileUrl?: string | null;
     adaptiveThreshold?: number | null;
 }
 
@@ -112,9 +113,10 @@ const SurveyInstancePage = () => {
                 mode: data.mode?.toUpperCase() === "ADAPTIV" ? "ADAPTIV" : "DESIGN",
                 booklet: data.booklet,
                 hasBooklet: data.hasBooklet,
-                knowledgeSpaceFileUrl: data.knowledgeSpaceFileUrl,
+                knowledgeSpaceFileUrl: data.knowledgeSpaceFileUrl ?? null,
                 probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
                 adaptiveThreshold: data.adaptiveThreshold ?? null,
+                betaEtaFileUrl: data.betaEtaFileUrl  ?? null
             });
 
             const inst = await getSurveyInstances(data.id);
@@ -250,26 +252,15 @@ const SurveyInstancePage = () => {
                         title={
                             survey.status === "FINISHED"
                                 ? "Die Erhebung wurde bereits geschlossen, es können keine Durchführungen mehr angelegt werden."
-                                : survey.mode === "ADAPTIV" && !survey.knowledgeSpaceFileUrl
-                                    ? "Vor der Erstellung muss ein Knowledge Space hochgeladen werden."
-                                    : survey.mode === "ADAPTIV" && !survey.probabilityDistributionFileUrl
-                                        ? "Vor der Erstellung muss eine Wahrscheinlichkeitsverteilung hochgeladen werden."
-                                        : survey.mode === "ADAPTIV" &&
-                                        (survey.adaptiveThreshold === null ||
-                                            survey.adaptiveThreshold === undefined)
-                                            ? "Vor der Erstellung muss ein Abbruch Threshold festgelegt werden."
-                                            : survey.mode === "DESIGN" && !survey.hasBooklet
-                                                ? "Vor der Erstellung muss eine Design-Matrix (Booklet) hochgeladen werden."
-                                                : ""
+                                : survey.mode === "ADAPTIV" && !survey.knowledgeSpaceFileUrl ? "Vor der Erstellung muss ein Knowledge Space hochgeladen werden."
+                                    : survey.mode === "ADAPTIV" && !survey.probabilityDistributionFileUrl ? "Vor der Erstellung muss eine Wahrscheinlichkeitsverteilung hochgeladen werden."
+                                        : survey.mode === "ADAPTIV" && !survey.betaEtaFileUrl ? "Vor der Erstellung müssen Beta/Eta Werte hochgeladen werden."
+                                            : survey.mode === "ADAPTIV" && (survey.adaptiveThreshold === null || survey.adaptiveThreshold === undefined) ? "Vor der Erstellung muss ein Abbruch Threshold festgelegt werden."
+                                                : survey.mode === "DESIGN" && !survey.hasBooklet ? "Vor der Erstellung muss eine Design-Matrix (Booklet) hochgeladen werden." : ""
                         } arrow>
                         <span>
                             <Button
-                                disabled={survey.status === "FINISHED" || (survey.mode === "ADAPTIV" && (
-                                    !survey.knowledgeSpaceFileUrl ||
-                                    !survey.probabilityDistributionFileUrl ||
-                                    survey.adaptiveThreshold === null ||
-                                    survey.adaptiveThreshold === undefined
-                                )) || (survey.mode === "DESIGN" && !survey.hasBooklet)}
+                                disabled={survey.status === "FINISHED" || (survey.mode === "ADAPTIV" && (!survey.knowledgeSpaceFileUrl || !survey.probabilityDistributionFileUrl || !survey.betaEtaFileUrl || survey.adaptiveThreshold === null || survey.adaptiveThreshold === undefined)) || (survey.mode === "DESIGN" && !survey.hasBooklet)}
                                 variant="contained"
                                 color="primary"
                                 startIcon={<Add />}

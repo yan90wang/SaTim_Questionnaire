@@ -1097,10 +1097,7 @@ export const uploadKnowledgeSpaceService = async (
     };
 };
 
-export const uploadProbabilityService = async (
-    surveyId: number,
-    file: Express.Multer.File
-) => {
+export const uploadProbabilityService = async (surveyId: number, file: Express.Multer.File) => {
     if (!file) {throw new Error("Keine Excel-Datei hochgeladen.");}
     const workbook = XLSX.read(file.buffer, {type: "buffer",});
     const sheetName = workbook.SheetNames[0];
@@ -1172,13 +1169,13 @@ export const uploadProbabilityService = async (
     }
 
     const { data: publicUrlData } = supabase.storage.from("probabilities").getPublicUrl(filePath);
-    const probabilityFileUrl = publicUrlData.publicUrl;
+    const probabilityDistributionFileUrl = publicUrlData.publicUrl;
     await prisma.survey.update({
         where: {
             id: surveyId,
         },
         data: {
-            probabilityDistributionFileUrl: probabilityFileUrl,
+            probabilityDistributionFileUrl: probabilityDistributionFileUrl,
         },
     });
 
@@ -1187,7 +1184,7 @@ export const uploadProbabilityService = async (
         probabilityColumn,
         probabilities,
         numberOfEntries: probabilities.length,
-        probabilityFileUrl,
+        probabilityDistributionFileUrl: probabilityDistributionFileUrl,
     };
 };
 

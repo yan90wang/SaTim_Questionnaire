@@ -753,10 +753,8 @@ async function fetchKnowledgeSpace(knowledgeSpaceFileUrl: string): Promise<{ ks:
     return {ks, itemColumns,};
 }
 
-async function fetchProbabilityDistribution(
-    probabilityFileUrl: string
-): Promise<number[]> {
-    const response = await fetch(probabilityFileUrl);
+async function fetchProbabilityDistribution(probabilityDistributionFileUrl: string): Promise<number[]> {
+    const response = await fetch(probabilityDistributionFileUrl);
 
     if (!response.ok) {
         throw new Error(`Probability Distribution konnte nicht geladen werden: ${response.status} ${response.statusText}`);

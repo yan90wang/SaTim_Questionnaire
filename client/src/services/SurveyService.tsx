@@ -403,10 +403,7 @@ export const uploadKnowledgeSpace = async (surveyId: string, file: File) => {
     return response.json();
 };
 
-export const uploadProbabilityDistribution = async (
-    surveyId: string,
-    file: File
-) => {
+export const uploadProbabilityDistribution = async (surveyId: string, file: File) => {
     const formData = new FormData();
     formData.append("probabilityDistribution", file);
 
@@ -414,20 +411,14 @@ export const uploadProbabilityDistribution = async (
         `${API_BASE}/api/survey/${surveyId}/probability-distribution`,
         {
             method: "POST",
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: {Authorization: `Bearer ${localStorage.getItem("token")}`,},
             body: formData,
         }
     );
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-
-        throw new Error(
-            error.message ??
-            "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung."
-        );
+        throw new Error(error.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.");
     }
 
     return response.json();

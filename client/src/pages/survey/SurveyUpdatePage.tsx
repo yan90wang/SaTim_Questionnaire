@@ -106,8 +106,8 @@ const SurveyUpdatePage = () => {
     const [exportQuestion, setExportQuestion] = useState<Question | null>(null);
     const [knowledgeSpaceFile, setKnowledgeSpaceFile] = useState<File | null>(null);
     const [uploadingKnowledgeSpace, setUploadingKnowledgeSpace] = useState(false);
-    const [probabilityDistributionFile, setProbabilityDistributionFile] = useState<File | null>(null);
-    const [uploadingProbabilityDistribution, setUploadingProbabilityDistribution] = useState(false);
+    const [probabilityFile, setProbabilityFile] = useState<File | null>(null);
+    const [uploadingProbabilityDistribution, setuploadingProbabilityDistribution] = useState(false);
     const [betaEtaFile, setBetaEtaFile] = useState<File | null>(null);
     const [uploadingBetaEta, setUploadingBetaEta] = useState(false);
 
@@ -412,7 +412,6 @@ const SurveyUpdatePage = () => {
 
             setSnackbar({open: true, message: "Knowledge Space erfolgreich hochgeladen.", severity: "success",});
             setKnowledgeSpaceFile(null);
-
         } catch (err: any) {
             console.error("Knowledge Space upload failed:", err);
             setSnackbar({open: true, message: err?.response?.data?.message ?? "Fehler beim Hochladen des Knowledge Space.", severity: "error",});
@@ -422,29 +421,21 @@ const SurveyUpdatePage = () => {
     };
 
     const handleProbabilityDistributionUpload = async () => {
-        if (!survey || !probabilityDistributionFile) {return;}
-        setUploadingProbabilityDistribution(true);
+        if (!survey || !probabilityFile) {return;}
+        setuploadingProbabilityDistribution(true);
         try {
-            const result = await uploadProbabilityDistribution(survey.id.toString(), probabilityDistributionFile);
-
+            const result = await uploadProbabilityDistribution(survey.id.toString(), probabilityFile);
             setSurvey(prev => {
                 if (!prev) return prev;
-                return {
-                    ...prev,
-                    probabilityDistributionFileUrl:
-                        result?.probabilityDistributionFileUrl ??
-                        prev.probabilityDistributionFileUrl,
-                };
+                return {...prev, probabilityDistributionFileUrl: result?.probabilityDistributionFileUrl ?? prev.probabilityDistributionFileUrl,};
             });
-
             setSnackbar({open: true, message: "Wahrscheinlichkeitsverteilung erfolgreich hochgeladen.", severity: "success",});
-            setProbabilityDistributionFile(null);
-
+            setProbabilityFile(null);
         } catch (err: any) {
             console.error("Probability distribution upload failed:", err);
             setSnackbar({open: true, message: err?.response?.data?.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.", severity: "error",});
         } finally {
-            setUploadingProbabilityDistribution(false);
+            setuploadingProbabilityDistribution(false);
         }
     };
 
@@ -469,12 +460,7 @@ const SurveyUpdatePage = () => {
             const result = await uploadBetaEta(survey.id.toString(), betaEtaFile);
             setSurvey((prev) => {
                 if (!prev) return prev;
-                return {
-                    ...prev,
-                    betaEtaFileUrl:
-                        result?.betaEtaFileUrl ??
-                        prev.betaEtaFileUrl,
-                };
+                return {...prev, betaEtaFileUrl: result?.betaEtaFileUrl ?? prev.betaEtaFileUrl,};
             });
             setSnackbar({open: true, message: "Beta-/Eta-Datei erfolgreich hochgeladen.", severity: "success",});
             setBetaEtaFile(null);
@@ -570,6 +556,20 @@ const SurveyUpdatePage = () => {
                         <Typography color="text.secondary" sx={{ pb: 3 }}>
                             Diese Einstellungen sind für adaptive Erhebungen zwingend erforderlich.
                         </Typography>
+                        <Box sx={{display: "flex", gap: 2, flexWrap: "wrap", mb: 3,}}>
+                            <Button variant="outlined" startIcon={<Download />} component="a" href="/examples/knowledge-space-example.xlsx" download>
+                                Beispiel Knowledge Space
+                            </Button>
+
+                            <Button variant="outlined" startIcon={<Download />} component="a" href="/examples/probability-distribution-example.xlsx" download>
+                                Beispiel Wahrscheinlichkeiten
+                            </Button>
+
+                            <Button variant="outlined" startIcon={<Download />} component="a" href="/examples/beta-eta-example.xlsx" download>
+                                Beispiel Beta / Eta
+                            </Button>
+                        </Box>
+
                         <Divider sx={{ my: 3 }} />
                         <Box display="flex" alignItems="center" justifyContent="space-between" gap={2}>
                             <Box>
@@ -627,8 +627,6 @@ const SurveyUpdatePage = () => {
                         )}
                         <Divider sx={{ my: 3 }} />
                         <Box>
-                            <Divider sx={{ my: 3 }} />
-
                             <Box>
                                 <Typography variant="h5">
                                     Wahrscheinlichkeitsverteilung
@@ -639,88 +637,54 @@ const SurveyUpdatePage = () => {
                                 </Typography>
 
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                    <Button
-                                        variant="outlined"
-                                        component="label"
-                                        startIcon={<UploadFile />}
-                                        disabled={uploadingProbabilityDistribution}
-                                    >
+                                    <Button variant="outlined" component="label" startIcon={<UploadFile />} disabled={uploadingProbabilityDistribution}>
                                         {uploadingProbabilityDistribution
                                             ? "Hochladen..."
                                             : survey.probabilityDistributionFileUrl ||
-                                            probabilityDistributionFile
+                                            probabilityFile
                                                 ? "Ersetzen"
                                                 : "Excel hochladen"
                                         }
 
-                                        <input
-                                            hidden
-                                            type="file"
-                                            accept=".xlsx,.xls"
+                                        <input hidden type="file" accept=".xlsx,.xls"
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0];
-
-                                                if (file) {
-                                                    setProbabilityDistributionFile(file);
-                                                }
-
+                                                if (file) {setProbabilityFile(file);}
                                                 e.target.value = "";
                                             }}
                                         />
                                     </Button>
 
                                     {survey.probabilityDistributionFileUrl && (
-                                        <Button
-                                            variant="outlined"
-                                            startIcon={<Download />}
-                                            component="a"
-                                            href={survey.probabilityDistributionFileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
+                                        <Button variant="outlined" startIcon={<Download />} component="a" href={survey.probabilityDistributionFileUrl} target="_blank" rel="noopener noreferrer">
                                             Probability Excel herunterladen
                                         </Button>
                                     )}
                                 </Box>
 
-                                {(probabilityDistributionFile ||
+                                {(probabilityFile ||
                                     survey.probabilityDistributionFileUrl) && (
-                                    <Box sx={{
-                                            mt: 2,
-                                            p: 1.5,
-                                            borderRadius: 1,
-                                            backgroundColor: "action.hover",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            gap: 2,
-                                        }}>
+                                    <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
                                         <Box sx={{ minWidth: 0 }}>
                                             <Typography variant="body2" fontWeight="bold" noWrap>
-                                                {probabilityDistributionFile?.name}
+                                                {probabilityFile?.name}
                                             </Typography>
 
-                                            {survey.probabilityDistributionFileUrl &&
-                                                !probabilityDistributionFile && (
+                                            {survey.probabilityDistributionFileUrl && !probabilityFile && (
                                                     <Typography variant="caption" color="text.secondary">
                                                         Bereits hochgeladen
                                                     </Typography>
                                                 )}
 
-                                            {probabilityDistributionFile && (
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
+                                            {probabilityFile && (
+                                                <Typography variant="caption" color="text.secondary">
                                                     Neue Datei ausgewählt
                                                 </Typography>
                                             )}
                                         </Box>
-                                        {probabilityDistributionFile && (
+                                        {probabilityFile && (
                                             <Button size="small" variant="contained" onClick={handleProbabilityDistributionUpload} disabled={uploadingProbabilityDistribution}>
-                                                {uploadingProbabilityDistribution
-                                                    ? "Hochladen..."
-                                                    : "Speichern"}
+                                                {uploadingProbabilityDistribution ? "Hochladen..." : "Speichern"}
                                             </Button>
                                         )}
                                     </Box>
