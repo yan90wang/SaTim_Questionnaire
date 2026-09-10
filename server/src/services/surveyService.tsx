@@ -940,8 +940,7 @@ function sanitizeExcelValue(value:any) {
     );
 }
 
-export const setSurveyTeacherAssignableService = async (surveyId: number, teacherAssigned: boolean
-) => {
+export const setSurveyTeacherAssignableService = async (surveyId: number, teacherAssigned: boolean) => {
     return prisma.$transaction(async (tx) => {
         const survey = await tx.survey.findUnique({
             where: {
@@ -985,10 +984,7 @@ export const setSurveyTeacherAssignableService = async (surveyId: number, teache
     });
 };
 
-export const uploadKnowledgeSpaceService = async (
-    surveyId: number,
-    file: Express.Multer.File
-) => {
+export const uploadKnowledgeSpaceService = async (surveyId: number, file: Express.Multer.File) => {
     if (!file) {throw new Error("Keine Excel-Datei hochgeladen.");}
 
     const workbook = XLSX.read(file.buffer, {type: "buffer",});
@@ -1013,10 +1009,9 @@ export const uploadKnowledgeSpaceService = async (
     }
 
     const stateColumnIndex = usedColumnIndexes[0];
-
     if (stateColumnIndex === undefined) {throw new Error("Keine Zustands-Spalte gefunden.");}
     const stateColumn = String(headerRow[stateColumnIndex]).trim();
-    const itemColumnIndexes = usedColumnIndexes.slice(1);
+    const itemColumnIndexes = usedColumnIndexes;
     const itemColumns = itemColumnIndexes.map((index) => String(headerRow[index]).trim());
     const ks = rows
         .slice(1)
@@ -1052,9 +1047,36 @@ export const uploadKnowledgeSpaceService = async (
         },
         select: {
             id: true,
+            betaEtaFileUrl: true,
+            probabilityDistributionFileUrl: true
         },
     });
     if (!survey) {throw new Error("Erhebung wurde nicht gefunden.");}
+
+    if (survey.betaEtaFileUrl) {
+        const existingBetaEta = await fetchBetaEtaIds(survey.betaEtaFileUrl);
+        const ksIds = new Set(numericItemColumns);
+        const betaEtaIds = new Set(existingBetaEta);
+        const missingInBetaEta = numericItemColumns.filter(id => !betaEtaIds.has(id));
+        const extraInBetaEta = existingBetaEta.filter(id => !ksIds.has(id));
+        if (missingInBetaEta.length > 0 || extraInBetaEta.length > 0) {
+            const details: string[] = [];
+            if (missingInBetaEta.length > 0) {
+                details.push(`Fehlend in Beta/Eta: ${missingInBetaEta.join(", ")}`);
+            }
+            if (extraInBetaEta.length > 0) {
+                details.push(`Zusätzlich in Beta/Eta: ${extraInBetaEta.join(", ")}`);
+            }
+            throw new Error(`Die Aufgaben-IDs des Knowledge Space passen nicht zur Beta/Eta-Datei. ${details.join(" ")}`);
+        }
+    }
+    if (survey.probabilityDistributionFileUrl) {
+        const probabilityRowCount = await fetchProbabilityRowCount(survey.probabilityDistributionFileUrl);
+        if (probabilityRowCount !== ks.length) {
+            throw new Error(`Knowledge Space und Probability-Datei passen nicht zusammen. ` + `Knowledge Space enthält ${ks.length} Zustände, ` + `Probability-Datei enthält ${probabilityRowCount} Einträge.`);
+        }
+    }
+
     const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
     const fileName = `${Date.now()}_${safeName}`;
     const filePath = `surveys/${surveyId}/knowledge-space/${fileName}`;
@@ -1142,11 +1164,18 @@ export const uploadProbabilityService = async (surveyId: number, file: Express.M
         },
         select: {
             id: true,
+            knowledgeSpaceFileUrl: true,
         },
     });
 
     if (!survey) {
         throw new Error("Erhebung wurde nicht gefunden.");
+    }
+    if (survey.knowledgeSpaceFileUrl) {
+        const ksRowCount = await fetchKnowledgeSpaceRowCount(survey.knowledgeSpaceFileUrl);
+        if (ksRowCount !== probabilities.length) {
+            throw new Error(`Probability-Datei und Knowledge Space passen nicht zusammen. ` + `Knowledge Space enthält ${ksRowCount} Zustände, ` + `Probability-Datei enthält ${probabilities.length} Einträge.`);
+        }
     }
 
     const safeName = file.originalname
@@ -1188,10 +1217,7 @@ export const uploadProbabilityService = async (surveyId: number, file: Express.M
     };
 };
 
-export const uploadBetaEtaService = async (
-    surveyId: number,
-    file: Express.Multer.File
-) => {
+export const uploadBetaEtaService = async (surveyId: number, file: Express.Multer.File) => {
     if (!file) {throw new Error("Keine Excel-Datei hochgeladen.");}
     if (!surveyId || Number.isNaN(surveyId)) {throw new Error("Ungültige Survey ID.");}
     const survey = await prisma.survey.findUnique({
@@ -1200,6 +1226,8 @@ export const uploadBetaEtaService = async (
         },
         select: {
             id: true,
+            knowledgeSpaceFileUrl: true,
+            ksQuestionIds: true
         },
     });
 
@@ -1209,12 +1237,7 @@ export const uploadBetaEtaService = async (
     if (!sheetName) {throw new Error("Excel-Datei enthält kein Tabellenblatt.");}
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) {throw new Error(         `Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`     );}
-    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(
-        sheet,
-        {
-            defval: null,
-        }
-    );
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {defval: null,});
     if (rows.length === 0) {throw new Error("Beta-Eta Excel-Datei ist leer.");}
     const firstRow = rows[0];
     if (!firstRow) {throw new Error("Beta-Eta Excel-Datei ist leer.");}
@@ -1249,6 +1272,30 @@ export const uploadBetaEtaService = async (
             eta: numericEta,
         };
     });
+    if (survey.knowledgeSpaceFileUrl && survey.ksQuestionIds.length > 0) {
+        const betaEtaIds = betaEta.map(entry => {
+            const id = Number(entry.id);
+            if (!Number.isInteger(id)) {
+                throw new Error(`Ungültige Aufgaben-ID in Beta/Eta-Datei: "${entry.id}".`);
+            }
+            return id;
+        });
+        const ksIds = survey.ksQuestionIds;
+        const ksIdSet = new Set(ksIds);
+        const betaEtaIdSet = new Set(betaEtaIds);
+        const missingInBetaEta = ksIds.filter(id => !betaEtaIdSet.has(id));
+        const extraInBetaEta = betaEtaIds.filter(id => !ksIdSet.has(id));
+        if (missingInBetaEta.length > 0 || extraInBetaEta.length > 0) {
+            const details: string[] = [];
+            if (missingInBetaEta.length > 0) {
+                details.push(`Fehlend in Beta/Eta: ${missingInBetaEta.join(", ")}`);
+            }
+            if (extraInBetaEta.length > 0) {
+                details.push(`Zusätzlich in Beta/Eta: ${extraInBetaEta.join(", ")}`);
+            }
+            throw new Error(`Die Aufgaben-IDs der Beta/Eta-Datei passen nicht zum Knowledge Space. ${details.join(" ")}`);
+        }
+    }
     const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
     const fileName = `${Date.now()}_${safeName}`;
     const filePath = `surveys/${surveyId}/beta-eta/${fileName}`;
@@ -1287,3 +1334,73 @@ export const uploadBetaEtaService = async (
         betaEtaFileUrl,
     };
 };
+
+async function fetchBetaEtaIds(betaEtaFileUrl: string): Promise<number[]> {
+    const response = await fetch(betaEtaFileUrl);
+    if (!response.ok) {throw new Error(`Bestehende Beta/Eta-Datei konnte nicht geladen werden: ` + `${response.status} ${response.statusText}`);}
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(Buffer.from(arrayBuffer), {type: "buffer",});
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {throw new Error("Bestehende Beta/Eta-Datei enthält kein Tabellenblatt.");}
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {throw new Error(`Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`);}
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {defval: null,});
+    if (rows.length === 0) {throw new Error("Bestehende Beta/Eta-Datei ist leer.");}
+    const firstRow = rows[0];
+    if (!firstRow) {throw new Error("Bestehende Beta/Eta-Datei ist leer.");}
+    const columns = Object.keys(firstRow);
+    const idColumn = columns[0];
+    if (!idColumn) {throw new Error("Beta/Eta-Datei enthält keine ID-Spalte.");}
+    return rows.map((row, index) => {
+        const id = Number(row[idColumn]);
+        if (!Number.isInteger(id)) {throw new Error(`Ungültige Aufgaben-ID in Beta/Eta-Zeile ${index + 2}.`);}
+        return id;
+    });
+}
+
+async function fetchProbabilityRowCount(probabilityFileUrl: string): Promise<number> {
+    const response = await fetch(probabilityFileUrl);
+    if (!response.ok) {
+        throw new Error(`Bestehende Probability-Datei konnte nicht geladen werden: ` + `${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(Buffer.from(arrayBuffer), {type: "buffer",});
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {throw new Error("Bestehende Probability-Datei enthält kein Tabellenblatt.");}
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {throw new Error(`Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`);}
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {defval: null,});
+    return rows.length;
+}
+
+async function fetchKnowledgeSpaceRowCount(knowledgeSpaceFileUrl: string): Promise<number> {
+    const response = await fetch(knowledgeSpaceFileUrl);
+
+    if (!response.ok) {
+        throw new Error(`Bestehender Knowledge Space konnte nicht geladen werden: ` + `${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(Buffer.from(arrayBuffer), {type: "buffer",});
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+        throw new Error("Bestehender Knowledge Space enthält kein Tabellenblatt.");
+    }
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+        throw new Error(`Das Tabellenblatt "${sheetName}" konnte nicht gefunden werden.`);
+    }
+    const rows = XLSX.utils.sheet_to_json<any[]>(
+        sheet,
+        {
+            header: 1,
+            defval: null,
+            blankrows: false,
+        }
+    );
+    if (rows.length < 2) {
+        throw new Error(
+            "Bestehender Knowledge Space enthält keine Zustände."
+        );
+    }
+    return rows.length - 1;
+}

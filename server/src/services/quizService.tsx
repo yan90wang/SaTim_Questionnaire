@@ -2,8 +2,8 @@ import prisma from "../config/prismaClient.js";
 import type {Prisma} from "@prisma/client";
 import type {survey, surveyInstance} from "@prisma/client";
 import * as XLSX from "xlsx";
-import {bayesianUpdate, halfsplitQuestion} from "./assessmentService.js";
 import {evaluateAnswersService} from "./solverService.js";
+import {bayesianUpdate, halfsplitQuestion} from "./adaptiveKSTService.js";
 
 export interface QuizQuestion {
     id: number;
@@ -141,8 +141,8 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             isAdaptive: true,
         };
     }
-    const selectedItemIndex  = await halfsplitQuestion(probs, ks);
-    const selectedQuestionId = itemColumns[selectedItemIndex-1];
+    const selectedItemIndex  = halfsplitQuestion(probs, ks);
+    const selectedQuestionId = itemColumns[selectedItemIndex];
     if (selectedQuestionId === undefined) {throw new Error(`No question ID found for item index ${selectedItemIndex}`);}
     nextQuestion = await prisma.question.findUnique({
         where: {
@@ -371,12 +371,12 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
         const evaluation = await evaluateAnswersService(questionId, input);
         if (!evaluation) {throw new Error("ANSWER_EVALUATION_FAILED");}
         const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
-        const itemIndex = itemColumns.indexOf(questionId) + 1;
-        if (itemIndex <= 0) {throw new Error(`Question ID ${questionId} not found in knowledge-space itemColumns`);}
+        const itemIndex = itemColumns.indexOf(questionId);
+        if (itemIndex < 0) {throw new Error(`Question ID ${questionId} not found in knowledge-space itemColumns`);}
 
         if (!surveyInstance.survey.betaEtaFileUrl) {throw new Error("BETA_ETA_FILE_NOT_FOUND");}
         const { beta, eta } = await fetchBetaEta(surveyInstance.survey.betaEtaFileUrl, itemColumns);
-        const bayesianResult = await bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
+        const bayesianResult = bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
         await prisma.adaptiveAnswer.update({
             where: {
                 id: adaptiveAnswer.id,

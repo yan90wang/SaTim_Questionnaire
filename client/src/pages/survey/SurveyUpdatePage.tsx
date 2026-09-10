@@ -404,12 +404,10 @@ const SurveyUpdatePage = () => {
         setUploadingKnowledgeSpace(true);
         try {
             const result = await uploadKnowledgeSpace(survey.id.toString(), knowledgeSpaceFile);
-
             setSurvey((prev) => {
                 if (!prev) return prev;
                 return {...prev, knowledgeSpaceFileUrl: result?.knowledgeSpaceFileUrl ?? prev.knowledgeSpaceFileUrl,};
             });
-
             setSnackbar({open: true, message: "Knowledge Space erfolgreich hochgeladen.", severity: "success",});
             setKnowledgeSpaceFile(null);
         } catch (err: any) {
@@ -433,7 +431,7 @@ const SurveyUpdatePage = () => {
             setProbabilityFile(null);
         } catch (err: any) {
             console.error("Probability distribution upload failed:", err);
-            setSnackbar({open: true, message: err?.response?.data?.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.", severity: "error",});
+            setSnackbar({open: true, message: err?.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.", severity: "error",});
         } finally {
             setuploadingProbabilityDistribution(false);
         }
