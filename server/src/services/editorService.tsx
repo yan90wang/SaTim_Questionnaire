@@ -102,7 +102,8 @@ export const findQuestionById = async (id: number, userId: number): Promise<Ques
         },
         select: {id: true, name: true, surveyId: true, validFrom: true, validTo: true,},
     });
-    const isEditable = (activeBookletSurveyInstances.length === 0) && (activeAdaptiveSurveyInstances.length === 0);
+ // TODO    const isEditable = (activeBookletSurveyInstances.length === 0) && (activeAdaptiveSurveyInstances.length === 0);
+    const isEditable = true;
     const { bookletQuestion, ...questionData } = result;
 
     return {
