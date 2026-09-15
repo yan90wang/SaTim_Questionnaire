@@ -141,15 +141,23 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             isAdaptive: true,
         };
     }
-    const selectedItemIndex  = halfsplitQuestion(probs, ks);
-    const selectedQuestionId = itemColumns[selectedItemIndex];
-    if (selectedQuestionId === undefined) {throw new Error(`No question ID found for item index ${selectedItemIndex}`);}
-    nextQuestion = await prisma.question.findUnique({
-        where: {
-            id: selectedQuestionId,
-        }
-    });
 
+    const distances = halfsplitQuestion(probs, ks);
+    const availableCandidates = distances
+        .map((distance, itemIndex) => ({itemIndex, questionId: itemColumns[itemIndex], distance,}))
+        .filter(candidate => candidate.questionId !== undefined && !questionIds.includes(candidate.questionId));
+
+    const minimumDistance = Math.min(...availableCandidates.map(candidate => candidate.distance));
+    const bestCandidates = availableCandidates.filter(candidate => candidate.distance === minimumDistance);
+    const selectedCandidate = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+    if (selectedCandidate) {
+       const selectedItemIndex = selectedCandidate.itemIndex;
+       const selectedQuestionId = itemColumns[selectedItemIndex];
+       if (selectedQuestionId === undefined) {throw new Error(`No question ID found for item index ${selectedItemIndex}`);}
+       nextQuestion = await prisma.question.findUnique({
+           where: {id: selectedQuestionId,}
+       });
+    }
     if (nextQuestion) {
         await prisma.questionAnswer.upsert({
             where: {
@@ -178,10 +186,7 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             });
         }
     }
-    const cleanNextQuestion: QuizQuestion | null = nextQuestion ? {
-        id: nextQuestion.id,
-        contentJson: nextQuestion.contentJson,
-    } : null;
+    const cleanNextQuestion: QuizQuestion | null = nextQuestion ? {id: nextQuestion.id, contentJson: nextQuestion.contentJson,} : null;
     return {
         surveyId: survey.id,
         surveyTitle: survey.title,

@@ -87,7 +87,7 @@ export type RandomFunction = () => number;
  * return value 1 -> first KS column
  * return value 5 -> fifth KS column
  */
-export function halfsplitQuestion(probs: number[], ks: number[][], random: RandomFunction = Math.random): number {
+export function halfsplitQuestion(probs: number[], ks: number[][], random: RandomFunction = Math.random): number[] {
     validateKs(ks);
     validateProbs(probs, ks.length);
     const firstRow = ks[0];
@@ -101,24 +101,7 @@ export function halfsplitQuestion(probs: number[], ks: number[][], random: Rando
         }
         itemProbabilities[itemIndex] = probability;
     }
-    const distances = itemProbabilities.map(probability => Math.abs(probability - 0.5));
-    const minimumDistance = Math.min(...distances);
-    const candidates: number[] = [];
-    for (let i = 0; i < distances.length; i++) {
-        if (distances[i] === minimumDistance) {
-            candidates.push(i);
-        }
-    }
-    if (candidates.length === 0) {
-        throw new Error("No halfsplit candidate found.");
-    }
-
-    if (candidates.length === 1) {
-        return candidates[0]!;
-    }
-
-    const randomIndex = Math.floor(random() * candidates.length);
-    return candidates[randomIndex]!;
+    return itemProbabilities.map(probability => Math.abs(probability - 0.5));
 }
 
 
@@ -191,9 +174,7 @@ export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemVal
         return [...probs];
     }
 
-    return posterior.map(
-        value => value / total
-    );
+    return posterior.map(value => value / total);
 }
 
 /* ============================================================
@@ -209,105 +190,105 @@ export interface SimplifiedAssessmentOptions {
 }
 
 
-/**
- * Equivalent to simplified_assessment().
- * responses contains one response per item:
- * [1,0,1,...]
- * The halfsplit algorithm determines which responseis actually consulted next.
- */
-export function simplifiedAssessment(responses: number[], ks: number[][], options: SimplifiedAssessmentOptions = {}): AssessmentResult | null {
-    validateKs(ks);
-    const {beta = 0.1, eta = 0.1, threshold = 0.51, prior, probdev = false, random = Math.random,} = options;
-    const numberOfStates = ks.length;
-    const firstRow = ks[0];
-    if (!firstRow) {throw new Error("ks must contain at least one state.");}
-    const numberOfItems = firstRow.length;
-    if (responses.length !== numberOfItems) {
-        throw new Error(`responses must have length ${numberOfItems}, got ${responses.length}.`);
-    }
-    for (const response of responses) {
-        if (response !== 0 && response !== 1) {
-            throw new Error("responses must be a binary vector.");
-        }
-    }
-    if (threshold < 0 || threshold > 1) {
-        throw new Error("Threshold must be between 0 and 1.");
-    }
-    if (threshold <= 0.5) {
-        console.warn("Threshold should be larger than 0.5!");
-    }
-    let probs: number[];
-    if (prior === undefined) {
-        probs = Array(numberOfStates).fill(1 / numberOfStates);
-    } else {
-        probs = [...prior];
-        validateProbs(probs, numberOfStates);
-    }
-
-    const queried: number[] = [];
-    const probabilityDevelopment: number[][] = [[...probs]];
-    const questionTimes: number[] = [];
-    const updateTimes: number[] = [];
-
-    while (Math.max(...probs) <= threshold) {
-        const questionStart = performance.now();
-        const item = halfsplitQuestion(probs, ks, random);
-        const questionEnd = performance.now();
-        questionTimes.push((questionEnd - questionStart) / 1000);
-        queried.push(item);
-
-        if (queried.length > 2 * numberOfItems) {
-            console.warn("Reached twice of number of items as number of questions!");
-            console.warn(`Question sequence: ${queried.join(", ")}`);
-            return null;
-        }
-
-        const response = responses[item];
-        const updateStart = performance.now();
-        if (response === undefined) {throw new Error(`No response found for item index ${item}`);}
-        probs = bayesianUpdate(probs, ks, beta, eta, item, response as 0 | 1);
-        const updateEnd = performance.now();
-        updateTimes.push((updateEnd - updateStart) / 1000);
-        probabilityDevelopment.push([...probs]);
-    }
-
-    /* ========================================================
-     * Determine final knowledge state
-     * ======================================================== */
-    const maxProbability = Math.max(...probs);
-    const winners: number[] = [];
-    for (let i = 0; i < probs.length; i++) {
-        if (probs[i] === maxProbability) {
-            winners.push(i);
-        }
-    }
-    let state: number[] = [];
-    if (winners.length === 1) {
-        state = [...ks[winners[0]!]!];
-    } else {
-        for (let column = 0; column < numberOfItems; column++) {
-            for (const winner of winners) {
-                state.push(ks[winner]![column]!);
-            }
-        }
-    }
-
-    const average = (values: number[]): number => {
-        if (values.length === 0) {
-            return 0;
-        }
-        return (values.reduce((sum, value) => sum + value, 0) / values.length);
-    };
-
-    return {
-        state,
-        probs: probdev ? probabilityDevelopment : [...probs],
-        queried,
-        qtime: average(questionTimes),
-        utime: average(updateTimes),
-    };
-}
-
+// /**
+//  * Equivalent to simplified_assessment().
+//  * responses contains one response per item:
+//  * [1,0,1,...]
+//  * The halfsplit algorithm determines which responseis actually consulted next.
+//  */
+// export function simplifiedAssessment(responses: number[], ks: number[][], options: SimplifiedAssessmentOptions = {}): AssessmentResult | null {
+//     validateKs(ks);
+//     const {beta = 0.1, eta = 0.1, threshold = 0.51, prior, probdev = false, random = Math.random,} = options;
+//     const numberOfStates = ks.length;
+//     const firstRow = ks[0];
+//     if (!firstRow) {throw new Error("ks must contain at least one state.");}
+//     const numberOfItems = firstRow.length;
+//     if (responses.length !== numberOfItems) {
+//         throw new Error(`responses must have length ${numberOfItems}, got ${responses.length}.`);
+//     }
+//     for (const response of responses) {
+//         if (response !== 0 && response !== 1) {
+//             throw new Error("responses must be a binary vector.");
+//         }
+//     }
+//     if (threshold < 0 || threshold > 1) {
+//         throw new Error("Threshold must be between 0 and 1.");
+//     }
+//     if (threshold <= 0.5) {
+//         console.warn("Threshold should be larger than 0.5!");
+//     }
+//     let probs: number[];
+//     if (prior === undefined) {
+//         probs = Array(numberOfStates).fill(1 / numberOfStates);
+//     } else {
+//         probs = [...prior];
+//         validateProbs(probs, numberOfStates);
+//     }
+//
+//     const queried: number[] = [];
+//     const probabilityDevelopment: number[][] = [[...probs]];
+//     const questionTimes: number[] = [];
+//     const updateTimes: number[] = [];
+//
+//     while (Math.max(...probs) <= threshold) {
+//         const questionStart = performance.now();
+//         const item = halfsplitQuestion(probs, ks, random);
+//         const questionEnd = performance.now();
+//         questionTimes.push((questionEnd - questionStart) / 1000);
+//         queried.push(item);
+//
+//         if (queried.length > 2 * numberOfItems) {
+//             console.warn("Reached twice of number of items as number of questions!");
+//             console.warn(`Question sequence: ${queried.join(", ")}`);
+//             return null;
+//         }
+//
+//         const response = responses[item];
+//         const updateStart = performance.now();
+//         if (response === undefined) {throw new Error(`No response found for item index ${item}`);}
+//         probs = bayesianUpdate(probs, ks, beta, eta, item, response as 0 | 1);
+//         const updateEnd = performance.now();
+//         updateTimes.push((updateEnd - updateStart) / 1000);
+//         probabilityDevelopment.push([...probs]);
+//     }
+//
+//     /* ========================================================
+//      * Determine final knowledge state
+//      * ======================================================== */
+//     const maxProbability = Math.max(...probs);
+//     const winners: number[] = [];
+//     for (let i = 0; i < probs.length; i++) {
+//         if (probs[i] === maxProbability) {
+//             winners.push(i);
+//         }
+//     }
+//     let state: number[] = [];
+//     if (winners.length === 1) {
+//         state = [...ks[winners[0]!]!];
+//     } else {
+//         for (let column = 0; column < numberOfItems; column++) {
+//             for (const winner of winners) {
+//                 state.push(ks[winner]![column]!);
+//             }
+//         }
+//     }
+//
+//     const average = (values: number[]): number => {
+//         if (values.length === 0) {
+//             return 0;
+//         }
+//         return (values.reduce((sum, value) => sum + value, 0) / values.length);
+//     };
+//
+//     return {
+//         state,
+//         probs: probdev ? probabilityDevelopment : [...probs],
+//         queried,
+//         qtime: average(questionTimes),
+//         utime: average(updateTimes),
+//     };
+// }
+//
 
 /* ============================================================
  * Helper: maximum probability
