@@ -418,29 +418,75 @@ export default function QuizPage() {
                         </Box>
                     ) : (quiz?.question && (<Preview content={quiz.question.contentJson} editorRef={editorRef} onGeoGebraChange={handleGeoGebraChange}/>))}
                 </Box>
-                {quiz?.isTwoTier && !quizFinished  && (
-                    <><Box sx={{border: '2px solid black', borderRadius: 2, p: 2, mt: 3, maxWidth: 600, margin: 'auto', mb: 3}}>
-                        <Typography variant="h6"    sx={{mb: 2, borderBottom: '1px solid #ccc', pb: 1}}>Dein Feedback</Typography>
-                        {feedbackQuestions.map((q) => (
-                            <Box key={q.key}>
-                                <Typography variant="body1" sx={{ mb: 1 }}>
-                                    {q.text}
-                                </Typography>
-                                {q.options.map((opt) => (
-                                    <label key={opt} style={{ display: 'block', marginBottom: 4 }}>
-                                        <input
-                                            type="radio"
-                                            name={q.key}
-                                            value={opt}
-                                            checked={feedback?.[q.key] === opt}
-                                            onChange={(e) => handleFeedbackChange(q.key, e.target.value)}
-                                        />
-                                        {opt}
-                                    </label>
-                                ))}
-                            </Box>
-                        ))}</Box>
-                    </>)}
+                {quiz?.isTwoTier && !quizFinished && (
+                    <Box sx={{maxWidth: 700, mx: "auto", mt: 4, mb: 4, p: { xs: 2, sm: 3 }, border: "1px solid", borderColor: "divider", borderRadius: 3, backgroundColor: "background.paper", boxShadow: "0 4px 20px rgba(0,0,0,0.06)",}}>
+                        {/* HEADER */}
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="h5" sx={{fontWeight: 700, mb: 0.5,}}>
+                                Dein Feedback
+                            </Typography>
+
+                            <Typography variant="body2" color="text.secondary">
+                                Wie hast du die Aufgabe erlebt?
+                            </Typography>
+                        </Box>
+
+                        {/* QUESTIONS */}
+                        <Stack spacing={3}>
+                            {feedbackQuestions.map((q, questionIndex) => (
+                                <Box key={q.key} sx={{p: 2.5, borderRadius: 2.5, backgroundColor: "action.hover",}}>
+                                    <Typography variant="body1" sx={{fontWeight: 600, mb: 1.5,}}>
+                                        {questionIndex + 1}. {q.text}
+                                    </Typography>
+
+                                    <Stack spacing={1}>
+                                        {q.options.map((opt) => {const selected = feedback?.[q.key] === opt;
+                                            return (
+                                                <Box component="label" key={opt} sx={{display: "flex", alignItems: "center", gap: 1.5,
+                                                    px: 2, py: 1.25,
+                                                    border: "1.5px solid", borderColor: selected ? "primary.main" : "divider",
+                                                    borderRadius: 2,
+                                                    backgroundColor: selected ? "rgba(25, 118, 210, 0.08)" : "background.paper",
+                                                    cursor: "pointer",
+                                                    userSelect: "none",
+                                                    transition:
+                                                        "all 0.15s ease",
+                                                        "&:hover": {
+                                                            borderColor: "primary.main",
+                                                            backgroundColor: selected
+                                                                ? "rgba(25, 118, 210, 0.11)"
+                                                                : "rgba(25, 118, 210, 0.04)",
+                                                            transform: "translateY(-1px)",
+                                                            boxShadow:
+                                                                "0 2px 8px rgba(0,0,0,0.05)",
+                                                        },
+                                                    }}>
+                                                    <Box
+                                                        component="input"
+                                                        type="radio"
+                                                        name={q.key}
+                                                        value={opt}
+                                                        checked={selected}
+                                                        onChange={(e) =>
+                                                            handleFeedbackChange(q.key, e.target.value)
+                                                        }
+                                                        sx={{appearance: "none", WebkitAppearance: "none", width: 22, height: 22, minWidth: 22, m: 0, border: "2px solid", borderColor: selected ? "primary.main" : "primary.light", borderRadius: "50%", backgroundColor: selected ? "primary.main" : "background.paper", position: "relative", cursor: "pointer", transition: "all 0.15s ease", "&::after": {content: '""', position: "absolute", width: 8, height: 8, top: "50%", left: "50%", transform: "translate(-50%, -50%)", borderRadius: "50%", backgroundColor: selected ? "#fff" : "transparent",},}}
+                                                    />
+
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{fontWeight: selected ? 600 : 400,}}>
+                                                        {opt}
+                                                    </Typography>
+                                                </Box>
+                                            );
+                                        })}
+                                    </Stack>
+                                </Box>
+                            ))}
+                        </Stack>
+                    </Box>
+                )}
                 {!quizFinished ? (
                     <Box sx={{mt: 4, display: "flex", alignItems: "center", margin: "auto", mb: 4,}}>
                         <Box sx={{display: "flex", gap: 1, mx: "auto",}}>
