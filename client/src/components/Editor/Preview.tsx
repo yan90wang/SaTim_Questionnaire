@@ -130,10 +130,43 @@ export const Preview: React.FC<PreviewProps> = ({ content, editorRef: previewEdi
                             "&:hover": {
                             borderColor: "text.secondary", backgroundColor: "action.hover",},},
 
-                        // SINGLE CHOICE
-                        "& .single-choice": {display: "flex", flexDirection: "column", width: "100%", margin: "1rem 0", padding: 0,},
-                        "& .single-choice-wrapper": {display: "flex", width: "100%", boxSizing: "border-box", margin: "0.5rem 0", padding: "0.8rem 1rem", border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default", transition: "border-color 0.15s ease, background-color 0.15s ease",
-                            "&:hover": {borderColor: "text.secondary", backgroundColor: "action.hover",},},
+                        // MC CHECKBOX
+                        '& .mc-choice-wrapper input[type="checkbox"]': {appearance: "none", WebkitAppearance: "none", width: "22px", height: "22px", minWidth: "22px", margin: "1px 12px 0 0", border: "2px solid", borderColor: "primary.light", borderRadius: "7px", backgroundColor: "background.paper", cursor: "pointer", position: "relative", transition: "all 0.18s ease",
+                            "&:hover": {borderColor: "primary.main", transform: "scale(1.08)", boxShadow: "0 0 0 4px rgba(25, 118, 210, 0.10)",},
+                            "&:checked": {backgroundColor: "primary.main", borderColor: "primary.main", transform: "scale(1.05)", boxShadow: "0 2px 7px rgba(25, 118, 210, 0.25)",},
+                            "&:checked::after": {content: '""', position: "absolute", left: "50%", top: "46%", width: "5px", height: "10px", border: "solid white", borderWidth: "0 2.5px 2.5px 0", transform: "translate(-50%, -50%) rotate(45deg)",},
+                            "&:focus-visible": {outline: "none", boxShadow: "0 0 0 4px rgba(25, 118, 210, 0.18)",},
+                        },
+
+                        // SINGLE CHOICE RADIO
+                        '& .node-singleChoice .mc-choice-wrapper input[type="radio"]': {appearance: "none", WebkitAppearance: "none", width: "22px", height: "22px", minWidth: "22px", flexShrink: 0, margin: "0 12px 0 0 !important", border: "2px solid", borderColor: "primary.light", borderRadius: "50%", backgroundColor: "background.paper", cursor: "pointer", position: "relative", transition: "all 0.18s ease",
+                            "&:hover": {
+                                borderColor: "primary.main",
+                                transform: "scale(1.08)",
+                                boxShadow: "0 0 0 4px rgba(25, 118, 210, 0.10)",
+                            },
+                            "&:checked": {
+                                borderColor: "primary.main",
+                                backgroundColor: "primary.main",
+                                transform: "scale(1.05)",
+                                boxShadow: "0 2px 7px rgba(25, 118, 210, 0.25)",
+                            },
+                            "&:checked::after": {
+                                content: '""',
+                                position: "absolute",
+                                width: "8px",
+                                height: "8px",
+                                left: "50%",
+                                top: "50%",
+                                transform: "translate(-50%, -50%)",
+                                borderRadius: "50%",
+                                backgroundColor: "#fff",
+                            },
+                            "&:focus-visible": {
+                                outline: "none",
+                                boxShadow: "0 0 0 4px rgba(25, 118, 210, 0.18)",
+                            },
+                        },
 
                         // NUMERIC INPUT
                         '& [data-type="numeric-input"]': {

@@ -68,7 +68,6 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             },
         },
     });
-
     if (!adaptiveAnswer) {
         if (!survey.knowledgeSpaceFileUrl) {
             throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
@@ -142,10 +141,11 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
         };
     }
 
+    const solvedQuestionIds = adaptiveAnswer.questionsAnswers.filter(qa => qa.solved).map(qa => qa.questionId);
     const distances = halfsplitQuestion(probs, ks);
     const availableCandidates = distances
         .map((distance, itemIndex) => ({itemIndex, questionId: itemColumns[itemIndex], distance,}))
-        .filter(candidate => candidate.questionId !== undefined && !questionIds.includes(candidate.questionId));
+        .filter(candidate => candidate.questionId !== undefined && !solvedQuestionIds.includes(candidate.questionId));
 
     const minimumDistance = Math.min(...availableCandidates.map(candidate => candidate.distance));
     const bestCandidates = availableCandidates.filter(candidate => candidate.distance === minimumDistance);
@@ -800,13 +800,7 @@ async function fetchProbabilityDistribution(probabilityDistributionFileUrl: stri
 
 
 
-async function fetchBetaEta(
-    betaEtaFileUrl: string,
-    itemColumns: number[]
-): Promise<{
-    beta: number[];
-    eta: number[];
-}> {
+async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Promise<{ beta: number[]; eta: number[]; }> {
     const response = await fetch(betaEtaFileUrl);
 
     if (!response.ok) {
