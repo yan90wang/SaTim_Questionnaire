@@ -14,9 +14,7 @@ import {
     getSurveyExportHandler,
     getQuestionsByIdsHandler,
     getQuestionDetailsByIdsHandler,
-    setSurveyTeacherAssignableHandler,
-    uploadKnowledgeSpace,
-    uploadProbabilityDistribution, uploadBetaEta,
+    setSurveyTeacherAssignableHandler,uploadAdaptiveFiles,
 } from "../controllers/surveyController.js";
 import { authenticateToken } from "../auth/authenticate.js";
 import multer from "multer";
@@ -35,9 +33,7 @@ router.delete("/:id", deleteSurveyHandler);
 
 router.post("/:surveyId/instance", createSurveyInstanceHandler);
 router.get("/:surveyId/instances", getSurveyInstancesHandler);
-router.post("/:surveyId/knowledge-space", upload.single("knowledgeSpace"), uploadKnowledgeSpace);
-router.post("/:surveyId/probability-distribution", upload.single("probabilityDistribution"), uploadProbabilityDistribution);
-router.post("/:surveyId/beta-eta", upload.single("betaEta"), uploadBetaEta);
+router.post("/:surveyId/adaptive-files", upload.fields([{ name: "knowledgeSpace", maxCount: 1 }, { name: "probabilityDistribution", maxCount: 1 }, { name: "betaEta", maxCount: 1 },]), uploadAdaptiveFiles);
 router.put("/instance/:id", updateSurveyInstanceHandler);
 router.delete("/instance/:id", deleteSurveyInstanceHandler);
 

@@ -26,10 +26,7 @@ import {
     getQuestionsByIds,
     getSurveyBooklets,
     getSurveyById,
-    updateSurvey,
-    uploadBetaEta,
-    uploadKnowledgeSpace,
-    uploadProbabilityDistribution,
+    updateSurvey, uploadAdaptiveFiles,
     uploadSurveyExcels
 } from "../../services/SurveyService.tsx";
 import {FileDownload} from "@mui/icons-material";
@@ -105,11 +102,10 @@ const SurveyUpdatePage = () => {
     const [exportProgress, setExportProgress] = useState<{ open: boolean; current: number; total: number; }>({open: false, current: 0, total: 0,});
     const [exportQuestion, setExportQuestion] = useState<Question | null>(null);
     const [knowledgeSpaceFile, setKnowledgeSpaceFile] = useState<File | null>(null);
-    const [uploadingKnowledgeSpace, setUploadingKnowledgeSpace] = useState(false);
     const [probabilityFile, setProbabilityFile] = useState<File | null>(null);
-    const [uploadingProbabilityDistribution, setuploadingProbabilityDistribution] = useState(false);
     const [betaEtaFile, setBetaEtaFile] = useState<File | null>(null);
-    const [uploadingBetaEta, setUploadingBetaEta] = useState(false);
+    const [adaptiveUploadDialogOpen, setAdaptiveUploadDialogOpen] = useState(false);
+    const [uploadingAdaptiveFiles, setUploadingAdaptiveFiles] = useState(false);
 
     useEffect(() => {
         const fetchSurvey = async () => {
@@ -397,43 +393,35 @@ const SurveyUpdatePage = () => {
         }
     };
 
-    const handleKnowledgeSpaceUpload = async () => {
-        if (!survey || !knowledgeSpaceFile) {
+    const handleAdaptiveFilesUpload = async () => {
+        if (!survey || !knowledgeSpaceFile || !probabilityFile || !betaEtaFile) {
             return;
         }
-        setUploadingKnowledgeSpace(true);
+        setUploadingAdaptiveFiles(true);
         try {
-            const result = await uploadKnowledgeSpace(survey.id.toString(), knowledgeSpaceFile);
-            setSurvey((prev) => {
-                if (!prev) return prev;
-                return {...prev, knowledgeSpaceFileUrl: result?.knowledgeSpaceFileUrl ?? prev.knowledgeSpaceFileUrl,};
-            });
-            setSnackbar({open: true, message: "Knowledge Space erfolgreich hochgeladen.", severity: "success",});
-            setKnowledgeSpaceFile(null);
-        } catch (err: any) {
-            console.error("Knowledge Space upload failed:", err);
-            setSnackbar({open: true, message: err?.response?.data?.message ?? "Fehler beim Hochladen des Knowledge Space.", severity: "error",});
-        } finally {
-            setUploadingKnowledgeSpace(false);
-        }
-    };
-
-    const handleProbabilityDistributionUpload = async () => {
-        if (!survey || !probabilityFile) {return;}
-        setuploadingProbabilityDistribution(true);
-        try {
-            const result = await uploadProbabilityDistribution(survey.id.toString(), probabilityFile);
+            const result = await uploadAdaptiveFiles(survey.id.toString(), knowledgeSpaceFile, probabilityFile, betaEtaFile);
             setSurvey(prev => {
                 if (!prev) return prev;
-                return {...prev, probabilityDistributionFileUrl: result?.probabilityDistributionFileUrl ?? prev.probabilityDistributionFileUrl,};
+                return {
+                    ...prev,
+                    knowledgeSpaceFileUrl: result.knowledgeSpaceFileUrl,
+                    probabilityDistributionFileUrl:
+                    result.probabilityDistributionFileUrl,
+                    betaEtaFileUrl: result.betaEtaFileUrl,
+                };
             });
-            setSnackbar({open: true, message: "Wahrscheinlichkeitsverteilung erfolgreich hochgeladen.", severity: "success",});
+
+            setKnowledgeSpaceFile(null);
             setProbabilityFile(null);
+            setBetaEtaFile(null);
+            setAdaptiveUploadDialogOpen(false);
+            setSnackbar({open: true, message: "Dateien erfolgreich hochgeladen.", severity: "success",});
+
         } catch (err: any) {
-            console.error("Probability distribution upload failed:", err);
-            setSnackbar({open: true, message: err?.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.", severity: "error",});
+            console.error("Excel upload failed:", err);
+            setSnackbar({open: true, message: err?.response?.data?.message ?? err?.message ?? "Fehler beim Hochladen der Dateien.", severity: "error",});
         } finally {
-            setuploadingProbabilityDistribution(false);
+            setUploadingAdaptiveFiles(false);
         }
     };
 
@@ -450,23 +438,35 @@ const SurveyUpdatePage = () => {
             setSaving(false);
         }
     };
-
-    const handleBetaEtaUpload = async () => {
-        if (!survey || !betaEtaFile) {return;}
-        setUploadingBetaEta(true);
+    const handleDownloadAdaptiveFiles = async () => {
+        if (!survey?.knowledgeSpaceFileUrl || !survey?.probabilityDistributionFileUrl || !survey?.betaEtaFileUrl) {
+            return;
+        }
         try {
-            const result = await uploadBetaEta(survey.id.toString(), betaEtaFile);
-            setSurvey((prev) => {
-                if (!prev) return prev;
-                return {...prev, betaEtaFileUrl: result?.betaEtaFileUrl ?? prev.betaEtaFileUrl,};
-            });
-            setSnackbar({open: true, message: "Beta-/Eta-Datei erfolgreich hochgeladen.", severity: "success",});
-            setBetaEtaFile(null);
-        } catch (err: any) {
-            console.error("Beta/Eta upload failed:", err);
-            setSnackbar({open: true, message: err?.message ?? "Fehler beim Hochladen der Beta-/Eta-Datei.", severity: "error",});
-        } finally {
-            setUploadingBetaEta(false);
+            const zip = new JSZip();
+            const [knowledgeSpaceResponse, probabilityResponse, betaEtaResponse,] = await Promise.all([
+                fetch(survey.knowledgeSpaceFileUrl),
+                fetch(survey.probabilityDistributionFileUrl),
+                fetch(survey.betaEtaFileUrl),
+            ]);
+
+            if (!knowledgeSpaceResponse.ok || !probabilityResponse.ok || !betaEtaResponse.ok) {
+                throw new Error("Eine oder mehrere Dateien konnten nicht geladen werden.");
+            }
+            const [knowledgeSpaceBlob, probabilityBlob, betaEtaBlob,] = await Promise.all([
+                knowledgeSpaceResponse.blob(),
+                probabilityResponse.blob(),
+                betaEtaResponse.blob(),
+            ]);
+
+            zip.file("knowledge-space.xlsx", knowledgeSpaceBlob);
+            zip.file("probability-distribution.xlsx", probabilityBlob);
+            zip.file("beta-eta.xlsx", betaEtaBlob);
+            const zipBlob = await zip.generateAsync({type: "blob",});
+            saveAs(zipBlob, `${survey.title}_adaptive-Dateien.zip`);
+        } catch (error) {
+            console.error("Adaptive files download failed:", error);
+            setSnackbar({open: true, message: "Adaptive Dateien konnten nicht heruntergeladen werden.", severity: "error",});
         }
     };
 
@@ -569,181 +569,40 @@ const SurveyUpdatePage = () => {
                         </Box>
 
                         <Divider sx={{ my: 3 }} />
-                        <Box display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-                            <Box>
-                                <Typography variant="h5">
-                                    Knowledge Space
-                                </Typography>
+                        <Box>
+                            <Typography variant="h5">
+                                Adaptive Einstellungen hochladen
+                            </Typography>
 
-                                <Typography color="text.secondary"  sx={{ pb: 3 }}>
-                                    Excel-Datei mit der Knowledge-Space-Matrix
-                                </Typography>
-                                <Button variant="outlined" component="label" startIcon={<UploadFile />} disabled={uploadingKnowledgeSpace}>
-                                    {uploadingKnowledgeSpace ? "Hochladen..." : survey.knowledgeSpaceFileUrl || knowledgeSpaceFile ? "Ersetzen" : "Excel hochladen"
-                                    }
-                                    <input hidden type="file" accept=".xlsx,.xls"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
+                            <Typography color="text.secondary" sx={{ mb: 2 }}>
+                                Knowledge Space, Wahrscheinlichkeitsverteilung und
+                                Beta-/Eta-Werte hochladen.
+                            </Typography>
 
-                                            if (file) {
-                                                setKnowledgeSpaceFile(file);
-                                            }
-                                            e.target.value = "";
-                                        }}
-                                    />
+                            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                                <Button variant="contained" startIcon={<UploadFile />}
+                                    onClick={() => {
+                                        setKnowledgeSpaceFile(null);
+                                        setProbabilityFile(null);
+                                        setBetaEtaFile(null);
+                                        setAdaptiveUploadDialogOpen(true);
+                                    }}>
+                                    {survey.knowledgeSpaceFileUrl && survey.probabilityDistributionFileUrl && survey.betaEtaFileUrl ? "Adaptive Dateien ersetzen" : "Adaptive Dateien hochladen"}
                                 </Button>
-
-                                {survey.knowledgeSpaceFileUrl && (
-                                    <Button sx={{ ml: 2 }} variant="outlined" startIcon={<Download />} component="a" href={survey.knowledgeSpaceFileUrl} target="_blank" rel="noopener noreferrer">
-                                        KS Excel herunterladen
-                                    </Button>
-                                )}
+                                {survey.knowledgeSpaceFileUrl &&
+                                    survey.probabilityDistributionFileUrl &&
+                                    survey.betaEtaFileUrl && (
+                                        <Button variant="outlined" startIcon={<Download />} onClick={handleDownloadAdaptiveFiles}>
+                                            Adaptive Dateien herunterladen
+                                        </Button>
+                                    )}
                             </Box>
                         </Box>
-                        {(knowledgeSpaceFile || survey.knowledgeSpaceFileUrl) && (
-                            <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
-                                <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" fontWeight="bold" noWrap>
-                                        {knowledgeSpaceFile?.name}
-                                    </Typography>
-
-                                    {survey.knowledgeSpaceFileUrl && !knowledgeSpaceFile && (
-                                        <Typography variant="caption" color="text.secondary">Bereits hochgeladen</Typography>
-                                    )}
-
-                                    {knowledgeSpaceFile && (
-                                        <Typography variant="caption" color="text.secondary">Neue Datei ausgewählt</Typography>
-                                    )}
-                                </Box>
-
-                                {knowledgeSpaceFile && (
-                                  <Button size="small" variant="contained" onClick={handleKnowledgeSpaceUpload} disabled={uploadingKnowledgeSpace}>
-                                        {uploadingKnowledgeSpace ? "Hochladen..." : "Speichern"}
-                                    </Button>
-                                )}
-                            </Box>
-                        )}
                         <Divider sx={{ my: 3 }} />
                         <Box>
-                            <Box>
-                                <Typography variant="h5">
-                                    Wahrscheinlichkeitsverteilung
-                                </Typography>
-
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    Excel-Datei mit der initialen Wahrscheinlichkeitsverteilung.
-                                </Typography>
-
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                    <Button variant="outlined" component="label" startIcon={<UploadFile />} disabled={uploadingProbabilityDistribution}>
-                                        {uploadingProbabilityDistribution
-                                            ? "Hochladen..."
-                                            : survey.probabilityDistributionFileUrl ||
-                                            probabilityFile
-                                                ? "Ersetzen"
-                                                : "Excel hochladen"
-                                        }
-
-                                        <input hidden type="file" accept=".xlsx,.xls"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {setProbabilityFile(file);}
-                                                e.target.value = "";
-                                            }}
-                                        />
-                                    </Button>
-
-                                    {survey.probabilityDistributionFileUrl && (
-                                        <Button variant="outlined" startIcon={<Download />} component="a" href={survey.probabilityDistributionFileUrl} target="_blank" rel="noopener noreferrer">
-                                            Probability Excel herunterladen
-                                        </Button>
-                                    )}
-                                </Box>
-
-                                {(probabilityFile ||
-                                    survey.probabilityDistributionFileUrl) && (
-                                    <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
-                                        <Box sx={{ minWidth: 0 }}>
-                                            <Typography variant="body2" fontWeight="bold" noWrap>
-                                                {probabilityFile?.name}
-                                            </Typography>
-
-                                            {survey.probabilityDistributionFileUrl && !probabilityFile && (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Bereits hochgeladen
-                                                    </Typography>
-                                                )}
-
-                                            {probabilityFile && (
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Neue Datei ausgewählt
-                                                </Typography>
-                                            )}
-                                        </Box>
-                                        {probabilityFile && (
-                                            <Button size="small" variant="contained" onClick={handleProbabilityDistributionUpload} disabled={uploadingProbabilityDistribution}>
-                                                {uploadingProbabilityDistribution ? "Hochladen..." : "Speichern"}
-                                            </Button>
-                                        )}
-                                    </Box>
-                                )}
-                            </Box>
-                            <Divider sx={{ my: 3 }} />
-                            <Box>
-                                <Typography variant="h5">
-                                    Beta-/Eta-Werte
-                                </Typography>
-
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    Excel-Datei mit den Beta- und Eta-Werten für die einzelnen Aufgaben.
-                                </Typography>
-
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                    <Button variant="outlined" component="label" startIcon={<UploadFile />} disabled={uploadingBetaEta}>
-                                        {uploadingBetaEta
-                                            ? "Hochladen..."
-                                            : survey.betaEtaFileUrl || betaEtaFile
-                                                ? "Ersetzen"
-                                                : "Excel hochladen"}
-                                        <input hidden type="file" accept=".xlsx,.xls" onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {setBetaEtaFile(file);}
-                                                e.target.value = "";
-                                            }}
-                                        />
-                                    </Button>
-                                    {survey.betaEtaFileUrl && (
-                                        <Button variant="outlined" startIcon={<Download />} component="a" href={survey.betaEtaFileUrl} target="_blank" rel="noopener noreferrer">
-                                            Beta-/Eta Excel herunterladen
-                                        </Button>
-                                    )}
-                                </Box>
-
-                                {(betaEtaFile || survey.betaEtaFileUrl) && (
-                                    <Box sx={{mt: 2, p: 1.5, borderRadius: 1, backgroundColor: "action.hover", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,}}>
-                                        <Box sx={{ minWidth: 0 }}>
-                                            <Typography variant="body2" fontWeight="bold" noWrap>
-                                                {betaEtaFile?.name}
-                                            </Typography>
-
-                                            <Typography variant="caption" color="text.secondary">
-                                                Bereits hochgeladen
-                                            </Typography>
-                                        </Box>
-
-                                        <Button size="small" variant="contained" onClick={handleBetaEtaUpload} disabled={uploadingBetaEta}>
-                                            {uploadingBetaEta ? "Hochladen..." : "Speichern"}
-                                        </Button>
-                                    </Box>
-                                )}
-                            </Box>
-                            <Divider sx={{ my: 3 }} />
-
-                            <Box>
                                 <Typography variant="h5">
                                     Abbruch Threshold
                                 </Typography>
-
                                 <TextField
                                     label="Threshold"
                                     type="number"
@@ -787,9 +646,7 @@ const SurveyUpdatePage = () => {
                                     </Button>
                                 </Box>
                             </Box>
-                        </Box>
                     </Paper>
-
                 )}
 
                 {survey.mode === "DESIGN" && (
@@ -924,6 +781,96 @@ const SurveyUpdatePage = () => {
                     <DialogActions>
                         <Button onClick={() => setErrorDialogOpen(false)} variant="contained">
                             Verstanden
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog open={adaptiveUploadDialogOpen} onClose={() => {if (!uploadingAdaptiveFiles) {setAdaptiveUploadDialogOpen(false);}}} fullWidth maxWidth="sm">
+                    <DialogTitle>
+                        Adaptive Dateien hochladen
+                    </DialogTitle>
+                    <DialogContent>
+                        <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                            <Typography color="text.secondary">
+                                Alle drei Excel-Dateien müssen ausgewählt werden.
+                                Die Dateien werden vor dem Hochladen gemeinsam validiert.
+                            </Typography>
+
+                            <Button variant={knowledgeSpaceFile ? "contained" : "outlined"} component="label" startIcon={<UploadFile />}>
+                                {knowledgeSpaceFile
+                                    ? `Knowledge Space: ${knowledgeSpaceFile.name}`
+                                    : "Knowledge Space auswählen"}
+
+                                <input
+                                    hidden
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+
+                                        if (file) {
+                                            setKnowledgeSpaceFile(file);
+                                        }
+
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </Button>
+                            <Button variant={probabilityFile ? "contained" : "outlined"} component="label" startIcon={<UploadFile />}>
+                                {probabilityFile ? `Wahrscheinlichkeiten: ${probabilityFile.name}` : "Wahrscheinlichkeiten auswählen"}
+                                <input hidden type="file" accept=".xlsx,.xls"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+
+                                        if (file) {
+                                            setProbabilityFile(file);
+                                        }
+
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </Button>
+                            <Button variant={betaEtaFile ? "contained" : "outlined"} component="label" startIcon={<UploadFile />}>
+                                {betaEtaFile ? `Beta / Eta: ${betaEtaFile.name}` : "Beta / Eta auswählen"}
+                                <input
+                                    hidden
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+
+                                        if (file) {
+                                            setBetaEtaFile(file);
+                                        }
+
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </Button>
+
+                            {(!knowledgeSpaceFile || !probabilityFile || !betaEtaFile) && (
+                                <Typography color="error" variant="body2">
+                                    Alle drei Dateien müssen ausgewählt werden.
+                                </Typography>
+                            )}
+                        </Box>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setAdaptiveUploadDialogOpen(false)} disabled={uploadingAdaptiveFiles}>
+                            Abbrechen
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            onClick={handleAdaptiveFilesUpload}
+                            disabled={
+                                !knowledgeSpaceFile ||
+                                !probabilityFile ||
+                                !betaEtaFile ||
+                                uploadingAdaptiveFiles
+                            }>
+                            {uploadingAdaptiveFiles
+                                ? "Wird hochgeladen..."
+                                : "Alle Dateien hochladen"}
                         </Button>
                     </DialogActions>
                 </Dialog>

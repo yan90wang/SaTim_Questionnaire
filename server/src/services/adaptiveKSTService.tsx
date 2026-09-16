@@ -87,7 +87,7 @@ export type RandomFunction = () => number;
  * return value 1 -> first KS column
  * return value 5 -> fifth KS column
  */
-export function halfsplitQuestion(probs: number[], ks: number[][], random: RandomFunction = Math.random): number[] {
+export function halfsplitQuestion(probs: number[], ks: number[][]): number[] {
     validateKs(ks);
     validateProbs(probs, ks.length);
     const firstRow = ks[0];

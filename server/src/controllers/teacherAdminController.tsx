@@ -100,13 +100,7 @@ export const getClassesAdmin = async (
  * ADMIN
  * GET /api/admin/teacher/:teacherId/classes/:id
  */
-export const getClassAdmin = async (
-    req: Request<{
-        teacherId: string;
-        id: string;
-    }>,
-    res: Response
-) => {
+export const getClassAdmin = async (req: Request<{ teacherId: string; id: string; }>, res: Response) => {
     try {
         const userId = Number((req as any).user?.id);
         const teacherId = Number(req.params.teacherId);
@@ -118,10 +112,7 @@ export const getClassAdmin = async (
             });
         }
 
-        if (
-            isNaN(teacherId) ||
-            isNaN(classId)
-        ) {
+        if (isNaN(teacherId) || isNaN(classId)) {
             return res.status(400).json({
                 message: "Invalid id",
             });

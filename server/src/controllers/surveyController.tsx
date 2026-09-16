@@ -11,9 +11,11 @@ import {
     getSurveyById,
     getSurveyExport,
     getSurveyInstances,
-    processSurveyExcels, setSurveyTeacherAssignableService,
+    processSurveyExcels,
+    setSurveyTeacherAssignableService,
     updateSurveyById,
-    updateSurveyInstanceById, uploadBetaEtaService, uploadKnowledgeSpaceService, uploadProbabilityService,
+    updateSurveyInstanceById,
+    uploadAdaptiveFilesService,
 } from "../services/surveyService.js";
 import fs from "fs";
 /**
@@ -360,50 +362,28 @@ export const setSurveyTeacherAssignableHandler = async (req: Request<{ surveyId:
     }
 };
 
-export const uploadKnowledgeSpace = async (
-    req: Request,
-    res: Response
-) => {
+export const uploadAdaptiveFiles = async (req: Request, res: Response) => {
     try {
         const surveyId = Number(req.params.surveyId);
-        if (!req.file) {return res.status(400).json({message: "Keine Excel-Datei hochgeladen.",});}
-        const result = await uploadKnowledgeSpaceService(surveyId, req.file);
-        return res.status(200).json({message: "Knowledge Space erfolgreich hochgeladen.", ...result,});
+        if (!surveyId || Number.isNaN(surveyId)) {
+            return res.status(400).json({message: "Ungültige Survey ID.",});
+        }
+        const files = req.files as { [fieldname: string]: Express.Multer.File[]; };
+        const knowledgeSpaceFile = files?.knowledgeSpace?.[0];
+        const probabilityDistributionFile = files?.probabilityDistribution?.[0];
+        const betaEtaFile = files?.betaEta?.[0];
+        if (!knowledgeSpaceFile || !probabilityDistributionFile || !betaEtaFile) {
+            return res.status(400).json({message: "Knowledge Space, Wahrscheinlichkeitsverteilung und Beta-Eta-Datei müssen hochgeladen werden.",});
+        }
+        const result = await uploadAdaptiveFilesService(
+            surveyId,
+            knowledgeSpaceFile,
+            probabilityDistributionFile,
+            betaEtaFile
+        );
+        return res.status(200).json({message: "Adaptive Dateien erfolgreich hochgeladen.", ...result,});
     } catch (error: any) {
-        console.error("Knowledge Space upload error:", error);
-        return res.status(400).json({message: error?.message ?? "Knowledge Space konnte nicht verarbeitet werden.",});
-    }
-};
-
-export const uploadProbabilityDistribution = async (
-    req: Request,
-    res: Response
-) => {
-    try {
-        const surveyId = Number(req.params.surveyId);
-        if (!surveyId || Number.isNaN(surveyId)) {return res.status(400).json({message: "Ungültige Survey ID.",});}
-        if (!req.file) {return res.status(400).json({message: "Keine Excel-Datei hochgeladen.",});}
-
-        const result = await uploadProbabilityService(surveyId, req.file);
-        return res.status(200).json({message: "Wahrscheinlichkeitsverteilung erfolgreich hochgeladen.", ...result,});
-    } catch (error: any) {
-        console.error("Probability distribution upload error:", error);
-        return res.status(400).json({message: error?.message ?? "Wahrscheinlichkeitsverteilung konnte nicht verarbeitet werden.",});
-    }
-};
-
-export const uploadBetaEta = async (req: Request, res: Response) => {
-    try {
-        const surveyId = Number(req.params.surveyId);
-
-        if (!surveyId || Number.isNaN(surveyId)) {return res.status(400).json({message: "Ungültige Survey ID.",});}
-        if (!req.file) {return res.status(400).json({message: "Keine Excel-Datei hochgeladen.",});}
-
-        const result = await uploadBetaEtaService(surveyId, req.file);
-        return res.status(200).json({message: "Beta-Eta-Datei erfolgreich hochgeladen.", ...result,});
-
-    } catch (error: any) {
-        console.error("Beta-Eta upload error:", error);
-        return res.status(400).json({message: error?.message ?? "Beta-Eta-Datei konnte nicht verarbeitet werden.",});
+        console.error("Adaptive files upload error:", error);
+        return res.status(400).json({message: error?.message ?? "Adaptive Dateien konnten nicht verarbeitet werden.",});
     }
 };

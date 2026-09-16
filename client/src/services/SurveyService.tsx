@@ -376,75 +376,27 @@ export async function assignSurveyToTeachers(surveyId: number, teacherAssigned: 
     return await response.json();
 }
 
-export const uploadKnowledgeSpace = async (surveyId: string, file: File) => {
+export const uploadAdaptiveFiles = async (surveyId: string, knowledgeSpaceFile: File, probabilityFile: File, betaEtaFile: File) => {
+    const token = localStorage.getItem("token");
+    if (!token) {throw new Error("User not authenticated");}
     const formData = new FormData();
-    formData.append("knowledgeSpace", file);
+    formData.append("knowledgeSpace", knowledgeSpaceFile);
+    formData.append("probabilityDistribution", probabilityFile);
+    formData.append("betaEta", betaEtaFile);
     const response = await fetch(
-        `${API_BASE}/api/survey/${surveyId}/knowledge-space`,
+        `${API_BASE}/api/survey/${surveyId}/adaptive-files`,
         {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
+                Authorization: `Bearer ${token}`,
             },
             body: formData,
         }
     );
 
     if (!response.ok) {
-        let error;
-        try {
-            error = await response.json();
-        } catch {
-            error = {message: "Knowledge Space konnte nicht hochgeladen werden.",};
-        }
-
-        throw {response: {data: error,},};
-    }
-    return response.json();
-};
-
-export const uploadProbabilityDistribution = async (surveyId: string, file: File) => {
-    const formData = new FormData();
-    formData.append("probabilityDistribution", file);
-
-    const response = await fetch(
-        `${API_BASE}/api/survey/${surveyId}/probability-distribution`,
-        {
-            method: "POST",
-            headers: {Authorization: `Bearer ${localStorage.getItem("token")}`,},
-            body: formData,
-        }
-    );
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message ?? "Fehler beim Hochladen der Wahrscheinlichkeitsverteilung.");
-    }
-
-    return response.json();
-};
-
-export const uploadBetaEta = async (
-    surveyId: string,
-    file: File
-) => {
-    const formData = new FormData();
-    formData.append("betaEta", file);
-
-    const response = await fetch(
-        `${API_BASE}/api/survey/${surveyId}/beta-eta`,
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
-            },
-            body: formData,
-        }
-    );
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message ?? "Fehler beim Hochladen der Beta-/Eta-Datei.");
+        const error = await response.json().catch(() => ({message: "Adaptive Dateien konnten nicht hochgeladen werden.",}));
+        throw new Error(error.message ?? "Adaptive Dateien konnten nicht hochgeladen werden.");
     }
 
     return response.json();
