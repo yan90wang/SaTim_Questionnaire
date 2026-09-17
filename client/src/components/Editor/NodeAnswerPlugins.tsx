@@ -39,6 +39,7 @@ export const FreeTextInline = Node.create({
             id: { default: null },
             value: { default: '', parseHTML: el => el.getAttribute('data-value') || '', renderHTML: attrs => ({ 'data-value': attrs.value }) },
             placeholder: { default: 'Antwort...' },
+            size: {default: "s"}
         }
     },
     parseHTML() {
@@ -193,9 +194,7 @@ export const NumericInput = Node.create({
     addAttributes() {
         return {
             id: { default: null },
-            size: {
-                default: 'l',
-            },
+            size: {default: 'l',},
             mode: {
                 default: 'numeric',
                 parseHTML: element => element.getAttribute('data-mode') || 'numeric',
@@ -294,6 +293,9 @@ export const Algebra = Node.create({
                     'data-value': attributes.value,
                 }),
             },
+            size: {
+                default: "l"
+            }
         }
     },
 
