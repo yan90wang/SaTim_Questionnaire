@@ -152,7 +152,7 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                     if (!userAnswer.value) {
                         break;
                     }
-                    const userVal = Number(userAnswer.value);
+                    const userVal = evaluateCondition({value: String(userAnswer.value), operator: "="});
                     const check = checkNumericConditions(userVal, conditions as NumericCondition[]);
                     if (check) {
                         isCorrect = true;
