@@ -153,33 +153,8 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                         break;
                     }
                     const userVal = Number(userAnswer.value);
-
-                    let result = conditions[0]?.logic === "and";
-                    for (const condition of conditions) {
-                        const condValue = Number(condition.value);
-                        let check = false;
-                        const EPS = 0.005;
-                        switch (condition.operator) {
-                            case "=":
-                                check = Math.abs(userVal - condValue) < EPS;
-                                break;
-                            case "<":
-                                check = userVal < condValue - EPS;
-                                break;
-                            case ">":
-                                check = userVal > condValue + EPS;
-                                break;
-                            case "<=":
-                                check = userVal <= condValue + EPS;
-                                break;
-                            case ">=":
-                                check = userVal >= condValue - EPS;
-                                break;
-                        }
-                        if (condition.logic === "and") result = result && check;
-                        else result = result || check;
-                    }
-                    if (result) {
+                    const check = checkNumericConditions(userVal, conditions as NumericCondition[]);
+                    if (check) {
                         isCorrect = true;
                     }
                     break;
@@ -321,7 +296,6 @@ function matchPoint(userPoint: { x: number; y: number }, correctPoint: { x: Nume
 function checkNumericConditions(value: number, conditions: NumericCondition[]): boolean {
     const EPS = 0.005;
     let result = conditions[0]?.logic !== "or";
-
     for (const cond of conditions) {
         const target = evaluateCondition(cond);
         let check = false;

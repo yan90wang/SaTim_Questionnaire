@@ -272,6 +272,7 @@ export default function QuestionsTablePage() {
                             <MenuItem value="geoGebraPoints">GeoGebra Punkte</MenuItem>
                             <MenuItem value="geoGebraLines">GeoGebra Geraden</MenuItem>
                             <MenuItem value="geoGebraSlope">GeoGebra Steigung</MenuItem>
+                            <MenuItem value="geoGebraSlopeTriangle">GeoGebra Steigung mit 3 Linien</MenuItem>
                         </Select>
                     </FormControl>
                 </Box>

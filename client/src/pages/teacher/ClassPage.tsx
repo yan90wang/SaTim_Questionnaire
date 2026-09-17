@@ -274,11 +274,16 @@ const ClassPage = () => {
                     </CardContent>
                 </Card>
             </Box>
-            <Dialog open={under14DialogOpen} onClose={() => {
-                if (!registeringUnder14) {
-                    setUnder14DialogOpen(false);
-                }
-            }} fullWidth maxWidth="sm">
+            <Dialog open={under14DialogOpen}
+                    onClose={(_event, reason) => {
+                        if (generatedCredentials || registeringUnder14) {
+                            return;
+                        }
+                        if (reason === "backdropClick" || reason === "escapeKeyDown") {
+                            setUnder14DialogOpen(false);
+                        }
+                    }}
+                    fullWidth maxWidth="sm">
                 <DialogTitle>
                     Schüler unter 14 registrieren
                 </DialogTitle>
@@ -316,8 +321,11 @@ const ClassPage = () => {
                     ) : (
                         <Alert severity="success">
                             <Typography variant="subtitle1" fontWeight="bold" sx={{mb: 1}}>
-                                Schüler erfolgreich registriert
+                                Schüler erfolgreich registriert.
                             </Typography>
+                            <Typography variant="subtitle1" sx={{mb: 1}}>
+                                Bitte speichern Sie die Zugangsdaten und geben Sie diese dem Schüler bzw. der Schülerin weiter. <b>Die Zugangsdaten können später nicht erneut eingesehen werden!
+                            </b></Typography>
 
                             <Typography>
                                 E-Mail: {generatedCredentials.email}
