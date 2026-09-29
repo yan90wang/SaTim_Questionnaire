@@ -228,7 +228,7 @@ const TestDashboardPage = () => {
                                                                     size="small"
                                                                     onClick={() => {
                                                                         const url = isAdminView
-                                                                            ? `/teacher/${teacherId}/testdetails/${test.id}`
+                                                                            ? `/admin/teacher/${teacherId}/testdetails/${test.id}`
                                                                             : `/teacher/testdetails/${test.id}`;
                                                                         navigate(url);
                                                                     }}                                                                >
