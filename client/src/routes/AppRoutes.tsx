@@ -23,6 +23,7 @@ import StudentDashboardPage from "../pages/sus/StudentDashboardPage.tsx";
 import TeacherProfilePage from "../pages/teacher/TeacherProfilePage.tsx";
 import TestDashboardPage from "../pages/teacher/TestDashboardPage.tsx";
 import StudentProfilePage from "../pages/sus/StudentProfilePage.tsx";
+import TestDetailsPage from "../pages/teacher/TestDetailsPage.tsx";
 
 function AppRoutes() {
     return (
@@ -42,12 +43,14 @@ function AppRoutes() {
                 <Route path="/teacher/class/:id" element={<ClassPage/>} />
                 <Route path="/teacher/testboard" element={<TestDashboardPage/>} />
                 <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+                <Route path="/teacher/testdetails/:testId" element={<TestDetailsPage/>} />
 
                 {/* ADMIN -> TEACHER VIEW */}
                 <Route path="/admin/teacher/:teacherId/classes" element={<LoggedInRoute><ClassOverviewPage /></LoggedInRoute>}/>
                 <Route path="/admin/teacher/:teacherId/class/:id" element={<LoggedInRoute><ClassPage /></LoggedInRoute>}/>
                 <Route path="/admin/teacher/:teacherId/testboard" element={<LoggedInRoute><TestDashboardPage /></LoggedInRoute>}/>
                 <Route path="/admin/teacher/:teacherId/profile" element={<LoggedInRoute><TeacherProfilePage /></LoggedInRoute>}/>
+                <Route path="/admin/teacher/:teacherId/testdetails/:testId" element={<LoggedInRoute><TestDetailsPage /></LoggedInRoute>}/>
 
                 {/* STUDENT TODO ADD AUTH */}
                 <Route path="/student/tests" element={<StudentDashboardPage />} />

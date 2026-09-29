@@ -16,7 +16,7 @@ import {PlayArrow,} from "@mui/icons-material";
 
 import TeacherLayout from "../../layouts/TeacherLayout";
 import {activateTestId, deactivateTest, getClassTests, type TeacherTest,} from "../../services/TestService";
-import {useParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 
 const TestDashboardPage = () => {
     const [tests, setTests] = useState<TeacherTest[]>([]);
@@ -28,6 +28,7 @@ const TestDashboardPage = () => {
         message: "",
         severity: "success" as "success" | "error",
     });
+    const navigate = useNavigate();
 
     useEffect(() => {
         const load = async () => {
@@ -169,6 +170,10 @@ const TestDashboardPage = () => {
                                                         Ergebnisse
                                                     </Box>
 
+                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
+                                                        Details
+                                                    </Box>
+
                                                     <Box component="th" sx={{textAlign: "right", p: 1.5,}}>
                                                         Aktion
                                                     </Box>
@@ -215,6 +220,20 @@ const TestDashboardPage = () => {
                                                                 <Typography variant="caption" color="text.secondary">
                                                                     abgeschlossen
                                                                 </Typography>
+                                                            </Box>
+
+                                                            <Box component="td" sx={{p: 1.5,}}>
+                                                                <Button
+                                                                    variant="outlined"
+                                                                    size="small"
+                                                                    onClick={() => {
+                                                                        const url = isAdminView
+                                                                            ? `/teacher/${teacherId}/testdetails/${test.id}`
+                                                                            : `/teacher/testdetails/${test.id}`;
+                                                                        navigate(url);
+                                                                    }}                                                                >
+                                                                    Details
+                                                                </Button>
                                                             </Box>
 
                                                             {/* Action */}

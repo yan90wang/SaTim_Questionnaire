@@ -6,7 +6,7 @@ import {
     deleteClassService,
     ensureTeacherBelongsToUserTeam,
     getClassesService,
-    getClassService, getClassTestsService,
+    getClassService, getClassTestsService, getTestDetailsService,
     updateClassService,
 } from "../services/schoolClassService.js";
 
@@ -188,35 +188,44 @@ export const deactivateClassTest = async (
 ) => {
     try {
         const teacherId = req.teacherId;
-
         if (!teacherId) {
-            return res.status(401).json({
-                message: "Unauthorized",
-            });
+            return res.status(401).json({message: "Unauthorized",});
         }
-
         const testId = Number(req.body.testId);
-
         if (!Number.isInteger(testId)) {
-            return res.status(400).json({
-                message: "Invalid test instance ID",
-            });
+            return res.status(400).json({message: "Invalid test instance ID",});
         }
-
         const test = await deactivateClassTestService(teacherId, testId);
         return res.status(200).json(test);
 
     } catch (err) {
         console.error("Failed to deactivate class test:", err);
-
         if (err instanceof Error && err.message === "Test instance not found") {
-            return res.status(404).json({
-                message: "Test instance not found",
+            return res.status(404).json({message: "Test instance not found",});
+        }
+        return res.status(500).json({message: "Failed to deactivate test",});
+    }
+};
+
+export const getTestDetails = async (req: Request<{testId: string}>, res: Response) => {
+    try {
+        const teacherId = req.teacherId!;
+        const testId = Number(req.params.testId);
+        if (isNaN(testId)) {
+            return res.status(400).json({
+                message: "Invalid test id",
             });
         }
-
-        return res.status(500).json({
-            message: "Failed to deactivate test",
-        });
+        const details = await getTestDetailsService(testId, teacherId);
+        return res.status(200).json(details);
+    } catch (err) {
+        console.error("Get test details error:", err);
+        if (err instanceof Error && err.message === "TEST_NOT_FOUND") {
+            return res.status(404).json({message: "Test not found",});
+        }
+        if (err instanceof Error && err.message === "FORBIDDEN") {
+            return res.status(403).json({message: "Access denied",});
+        }
+        return res.status(500).json({message: "Test details could not be loaded",});
     }
 };

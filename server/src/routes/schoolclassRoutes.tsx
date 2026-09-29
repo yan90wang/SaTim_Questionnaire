@@ -7,6 +7,7 @@ import {
     getClass,
     getClasses,
     getClassTests,
+    getTestDetails,
     updateClass,
 } from "../controllers/schoolClassController.js";
 import {teacherAuth} from "../auth/teacherAuthenticate.js";
@@ -15,6 +16,7 @@ import {registerUnder14Student} from "../controllers/teacherController.js";
 const router = express.Router();
 router.get("/list", teacherAuth, getClasses);
 router.get("/tests", teacherAuth, getClassTests);
+router.get("/tests/:testId/details", teacherAuth, getTestDetails);
 router.post("/tests/activate", teacherAuth, activateClassTest);
 router.post("/tests/deactivate", teacherAuth, deactivateClassTest);
 router.get("/:id", teacherAuth, getClass);

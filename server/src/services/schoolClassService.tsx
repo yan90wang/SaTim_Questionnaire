@@ -145,10 +145,7 @@ export const getClassService = async (
 };
 
 
-export const ensureTeacherBelongsToUserTeam = async (
-    userId: number,
-    teacherId: number
-): Promise<void> => {
+export const ensureTeacherBelongsToUserTeam = async (userId: number, teacherId: number): Promise<void> => {
     const userTeamId = await getUserTeam(userId);
     const teacher = await prisma.teacher.findUnique({
         where: {
@@ -392,5 +389,212 @@ export const deactivateClassTestService = async (
 
         createdAt: updatedInstance.createdAt,
         updatedAt: updatedInstance.updatedAt,
+    };
+};
+
+export const getTestDetailsService = async (testId: number, teacherId: number) => {
+
+    const test = await prisma.classTestInstance.findUnique({
+        where: {
+            id: testId,
+        },
+        include: {
+            survey: true,
+            schoolClass: {
+                include: {
+                    student: true,
+                },
+            },
+        },
+    });
+
+    if (!test) {
+        throw new Error("TEST_NOT_FOUND");
+    }
+
+    if (test.schoolClass.teacherId !== teacherId) {
+        throw new Error("FORBIDDEN");
+    }
+
+    const students = test.schoolClass.student;
+    const surveyInstances = await prisma.surveyInstance.findMany({
+        where: {
+            surveyId: test.surveyId,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    const instanceIds = surveyInstances.map(
+        (instance) => instance.id
+    );
+
+    if (test.survey.mode === "DESIGN") {
+        const answers = await prisma.answer.findMany({
+            where: {
+                surveyId: test.surveyId,
+                instanceId: {
+                    in: instanceIds,
+                },
+                userId: {
+                    in: students.map(
+                        (student) => String(student.id)
+                    ),
+                },
+            },
+            include: {
+                questionsAnswers: true,
+            },
+        });
+
+        const answerByUser = new Map(
+            answers.map((answer) => [
+                answer.userId,
+                answer,
+            ])
+        );
+
+        const studentResults = students.map((student) => {
+            const answer = answerByUser.get(
+                String(student.id)
+            );
+
+            const correctAnswers =
+                answer?.questionsAnswers.filter(
+                    (questionAnswer) =>
+                        questionAnswer.solved
+                ).length ?? 0;
+
+            return {
+                studentId: student.id,
+
+                studentLogin:
+                    student.email ??
+                    student.externalId ??
+                    `Schüler ${student.id}`,
+
+                correctAnswers,
+
+                totalQuestions:
+                    answer?.questionIds.length ?? 0,
+
+                finished:
+                    answer?.quizFinished ?? false,
+            };
+        });
+
+        const questionMap = new Map<number, number>();
+        for (const answer of answers) {
+            for (const questionId of answer.questionIds) {
+                if (!questionMap.has(questionId)) {
+                    questionMap.set(questionId, 0);
+                }
+            }
+        }
+        for (const answer of answers) {
+            for (
+                const questionAnswer
+                of answer.questionsAnswers
+                ) {
+                if (questionAnswer.solved) {
+                    questionMap.set(
+                        questionAnswer.questionId,
+                        (
+                            questionMap.get(
+                                questionAnswer.questionId
+                            ) ?? 0
+                        ) + 1
+                    );
+                }
+            }
+        }
+
+        const questionResults =
+            Array.from(questionMap.entries())
+                .map(
+                    ([questionId, correctCount]) => ({
+                        questionId,
+                        correctCount,
+                    })
+                )
+                .sort(
+                    (a, b) =>
+                        a.questionId - b.questionId
+                );
+
+        return {
+            id: test.id,
+            title: test.survey.title,
+            description: test.survey.description,
+            className: test.schoolClass.name,
+            mode: test.survey.mode,
+
+            students: studentResults,
+
+            questionResults,
+        };
+    }
+
+
+    const answers = await prisma.adaptiveAnswer.findMany({
+        where: {
+            surveyId: test.surveyId,
+
+            surveyInstanceId: {
+                in: instanceIds,
+            },
+
+            userId: {
+                in: students.map(
+                    (student) => String(student.id)
+                ),
+            },
+        },
+
+        include: {
+            questionsAnswers: true,
+        },
+    });
+
+    const answerByUser = new Map(
+        answers.map((answer) => [
+            answer.userId,
+            answer,
+        ])
+    );
+
+    const studentResults = students.map((student) => {
+        const answer = answerByUser.get(
+            String(student.id)
+        );
+
+        const correctAnswers =
+            answer?.questionsAnswers.filter(
+                (questionAnswer) =>
+                    questionAnswer.solved
+            ).length ?? 0;
+
+        return {
+            studentId: student.id,
+            studentLogin:
+                student.email ??
+                student.externalId ??
+                `Schüler ${student.id}`,
+
+            correctAnswers,
+            totalQuestions: answer?.questionIds.length ?? 0,
+            finished: answer?.quizFinished ?? false,
+        };
+    });
+
+    return {
+        id: test.id,
+        title: test.survey.title,
+        description: test.survey.description,
+        className: test.schoolClass.name,
+        mode: test.survey.mode,
+        students: studentResults,
+        questionResults: [],
     };
 };

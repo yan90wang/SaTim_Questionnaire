@@ -24,12 +24,28 @@ export interface TeacherTest {
     updatedAt: string;
 }
 
-export interface TestFilter {
-    search?: string;
-    status?: string;
-    mode?: string;
+export interface StudentTestResult {
+    studentId: number;
+    studentLogin: string;
+    correctAnswers: number;
+    totalQuestions: number;
+    finished: boolean;
 }
 
+export interface QuestionTestResult {
+    questionId: number;
+    correctCount: number;
+}
+
+export interface TestDetails {
+    id: number;
+    title: string;
+    description?: string | null;
+    className: string;
+    mode: "DESIGN" | "ADAPTIV";
+    students: StudentTestResult[];
+    questionResults: QuestionTestResult[];
+}
 
 /**
  * Get all test instances assigned to a specific class.
@@ -98,6 +114,31 @@ export const deactivateTest = async (testId: number, teacherId?:string, isAdminV
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to deactivate test");
+    }
+
+    return response.json();
+};
+
+/**
+ * Get details/results for a specific class test.
+ */
+export const getTestDetails = async (testId: number, teacherId?: string, isAdminView = false): Promise<TestDetails> => {
+    const url = isAdminView ? `${API_URL}/api/admin/teacher/${teacherId}/classes/tests/${testId}/details`
+        : `${API_URL}/api/schoolclass/tests/${testId}/details`;
+    const response = await classAuthFetch(
+        url,
+        {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        },
+        isAdminView
+    );
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to fetch test details: ${error}`);
     }
 
     return response.json();

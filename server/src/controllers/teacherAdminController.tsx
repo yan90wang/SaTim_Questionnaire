@@ -8,7 +8,7 @@ import {
     ensureTeacherBelongsToUserTeam,
     getClassesService,
     getClassService,
-    getClassTestsService,
+    getClassTestsService, getTestDetailsService,
     updateClassService,
 } from "../services/schoolClassService.js";
 
@@ -139,32 +139,14 @@ export const getClassAdmin = async (req: Request<{ teacherId: string; id: string
         );
 
     } catch (err) {
-        console.error(
-            "Admin get class error:",
-            err
-        );
-
-        if (
-            err instanceof Error &&
-            err.message === "Teacher not found"
-        ) {
-            return res.status(404).json({
-                message: "Teacher not found",
-            });
+        console.error("Admin get class error:", err);
+        if (err instanceof Error && err.message === "Teacher not found") {
+            return res.status(404).json({message: "Teacher not found",});
         }
-
-        if (
-            err instanceof Error &&
-            err.message === "Access denied"
-        ) {
-            return res.status(403).json({
-                message: "Access denied",
-            });
+        if (err instanceof Error && err.message === "Access denied") {
+            return res.status(403).json({message: "Access denied",});
         }
-
-        return res.status(500).json({
-            message: "Server error",
-        });
+        return res.status(500).json({message: "Server error",});
     }
 };
 
@@ -173,14 +155,7 @@ export const getClassAdmin = async (req: Request<{ teacherId: string; id: string
  * ADMIN
  * POST /api/admin/teacher/:teacherId/classes
  */
-export const createClassAdmin = async (
-    req: Request<
-        { teacherId: string },
-        {},
-        CreateClassBody
-    >,
-    res: Response
-) => {
+export const createClassAdmin = async (req: Request<{ teacherId: string }, {}, CreateClassBody>, res: Response) => {
     try {
         const userId = Number((req as any).user?.id);
         const teacherId = Number(req.params.teacherId);
@@ -229,19 +204,13 @@ export const createClassAdmin = async (
             err
         );
 
-        if (
-            err instanceof Error &&
-            err.message === "Teacher not found"
-        ) {
+        if (err instanceof Error && err.message === "Teacher not found") {
             return res.status(404).json({
                 message: "Teacher not found",
             });
         }
 
-        if (
-            err instanceof Error &&
-            err.message === "Access denied"
-        ) {
+        if (err instanceof Error && err.message === "Access denied") {
             return res.status(403).json({
                 message: "Access denied",
             });
@@ -258,17 +227,7 @@ export const createClassAdmin = async (
  * ADMIN
  * PUT /api/admin/teacher/:teacherId/classes/:id
  */
-export const updateClassAdmin = async (
-    req: Request<
-        {
-            teacherId: string;
-            id: string;
-        },
-        {},
-        UpdateClassBody
-    >,
-    res: Response
-) => {
+export const updateClassAdmin = async (req: Request<{ teacherId: string; id: string; }, {}, UpdateClassBody>, res: Response) => {
     try {
         const userId = Number((req as any).user?.id);
         const teacherId = Number(req.params.teacherId);
@@ -280,58 +239,31 @@ export const updateClassAdmin = async (
             });
         }
 
-        if (
-            isNaN(teacherId) ||
-            isNaN(classId)
-        ) {
+        if (isNaN(teacherId) || isNaN(classId)) {
             return res.status(400).json({
                 message: "Invalid id",
             });
         }
-
-        await ensureTeacherBelongsToUserTeam(
-            userId,
-            teacherId
-        );
-
-        const updatedClass = await updateClassService(
-            teacherId,
-            classId,
-            req.body
-        );
-
-        return res.status(200).json(
-            updatedClass
-        );
+        await ensureTeacherBelongsToUserTeam(userId, teacherId);
+        const updatedClass = await updateClassService(teacherId, classId, req.body);
+        return res.status(200).json(updatedClass);
 
     } catch (err) {
-        console.error(
-            "Admin update class error:",
-            err
-        );
+        console.error("Admin update class error:", err);
 
-        if (
-            err instanceof Error &&
-            err.message === "Class not found"
-        ) {
+        if (err instanceof Error && err.message === "Class not found") {
             return res.status(404).json({
                 message: "Class not found",
             });
         }
 
-        if (
-            err instanceof Error &&
-            err.message === "Teacher not found"
-        ) {
+        if (err instanceof Error && err.message === "Teacher not found") {
             return res.status(404).json({
                 message: "Teacher not found",
             });
         }
 
-        if (
-            err instanceof Error &&
-            err.message === "Access denied"
-        ) {
+        if (err instanceof Error && err.message === "Access denied") {
             return res.status(403).json({
                 message: "Access denied",
             });
@@ -348,12 +280,7 @@ export const updateClassAdmin = async (
  * ADMIN
  * DELETE /api/admin/teacher/:teacherId/classes/:id
  */
-export const deleteClassAdmin = async (
-    req: Request<{
-        teacherId: string;
-        id: string;
-    }>,
-    res: Response
+export const deleteClassAdmin = async (req: Request<{ teacherId: string; id: string; }>, res: Response
 ) => {
     try {
         const userId = Number((req as any).user?.id);
@@ -726,5 +653,44 @@ export const registerUnder14StudentAdmin = async (
             message:
                 "Schüler konnte nicht registriert werden.",
         });
+    }
+};
+
+/**
+ * ADMIN
+ * GET /api/admin/teacher/:teacherId/classes/tests/:testId/details
+ */
+export const getClassTestDetailsAdmin = async (req: Request<{     teacherId: string;     testId: string; }>, res: Response
+) => {
+    try {
+        const userId = Number((req as any).user?.id);
+        const teacherId = Number(req.params.teacherId);
+        const testId = Number(req.params.testId);
+
+        if (!userId) {
+            return res.status(401).json({message: "Not authenticated",});
+        }
+
+        if (isNaN(teacherId) || isNaN(testId)) {
+            return res.status(400).json({
+                message: "Invalid id",
+            });
+        }
+        await ensureTeacherBelongsToUserTeam(userId, teacherId);
+        const details = await getTestDetailsService(testId, teacherId);
+        return res.status(200).json(details);
+
+    } catch (err) {
+        console.error("Admin get class test details error:", err);
+        if (err instanceof Error && err.message === "Teacher not found") {
+            return res.status(404).json({message: "Teacher not found",});
+        }
+        if (err instanceof Error && err.message === "TEST_NOT_FOUND") {
+            return res.status(404).json({message: "Test not found",});
+        }
+        if (err instanceof Error && (err.message === "Access denied" || err.message === "FORBIDDEN")) {
+            return res.status(403).json({message: "Access denied",});
+        }
+        return res.status(500).json({message: "Test details could not be loaded",});
     }
 };

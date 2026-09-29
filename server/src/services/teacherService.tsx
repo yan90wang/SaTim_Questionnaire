@@ -229,3 +229,4 @@ export const updateTeacherService = async (
         },
     });
 };
+
