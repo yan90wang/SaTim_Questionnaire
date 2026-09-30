@@ -1,5 +1,6 @@
 import prisma from "../config/prismaClient.js";
 import {getUserTeam} from "./teamServices.js";
+import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
 
 export const getClassesService = async (teacherId: number) => {
     return prisma.schoolClass.findMany({
@@ -393,7 +394,6 @@ export const deactivateClassTestService = async (
 };
 
 export const getTestDetailsService = async (testId: number, teacherId: number) => {
-
     const test = await prisma.classTestInstance.findUnique({
         where: {
             id: testId,
@@ -438,9 +438,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                     in: instanceIds,
                 },
                 userId: {
-                    in: students.map(
-                        (student) => String(student.id)
-                    ),
+                    in: students.map((student) => String(student.id)),
                 },
             },
             include: {
@@ -455,34 +453,35 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
             ])
         );
 
-        const studentResults = students.map((student) => {
-            const answer = answerByUser.get(
-                String(student.id)
-            );
+        const studentResults = await Promise.all(students.map(async (student) => {
+            const answer = answerByUser.get(String(student.id));
+            if (!answer) {
+                return {
+                    studentId: student.id,
 
-            const correctAnswers =
-                answer?.questionsAnswers.filter(
-                    (questionAnswer) =>
-                        questionAnswer.solved
-                ).length ?? 0;
+                    studentLogin:
+                        student.email ??
+                        student.externalId ??
+                        `Schüler ${student.id}`,
 
+                    correctAnswers: 0,
+                    totalQuestions: 0,
+                    finished: false,
+                };
+            }
+            let correctAnswers = 0;
+            for (const questionAnswer of answer.questionsAnswers) {
+                const correct = await evaluateQuestionAnswer(questionAnswer.questionId, questionAnswer.answerJson);
+                if (correct) {correctAnswers++;}
+            }
             return {
                 studentId: student.id,
-
-                studentLogin:
-                    student.email ??
-                    student.externalId ??
-                    `Schüler ${student.id}`,
-
+                studentLogin: student.email ?? student.externalId ?? `Schüler ${student.id}`,
                 correctAnswers,
-
-                totalQuestions:
-                    answer?.questionIds.length ?? 0,
-
-                finished:
-                    answer?.quizFinished ?? false,
+                totalQuestions: answer?.questionIds.length ?? 0,
+                finished: answer?.quizFinished ?? false,
             };
-        });
+        }));
 
         const questionMap = new Map<number, number>();
         for (const answer of answers) {
@@ -493,19 +492,10 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
             }
         }
         for (const answer of answers) {
-            for (
-                const questionAnswer
-                of answer.questionsAnswers
-                ) {
-                if (questionAnswer.solved) {
-                    questionMap.set(
-                        questionAnswer.questionId,
-                        (
-                            questionMap.get(
-                                questionAnswer.questionId
-                            ) ?? 0
-                        ) + 1
-                    );
+            for (const questionAnswer of answer.questionsAnswers) {
+                const correct = await evaluateQuestionAnswer(questionAnswer.questionId, questionAnswer.answerJson);
+                if (correct) {
+                    questionMap.set(questionAnswer.questionId, (questionMap.get(questionAnswer.questionId) ?? 0) + 1);
                 }
             }
         }
@@ -540,54 +530,48 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
     const answers = await prisma.adaptiveAnswer.findMany({
         where: {
             surveyId: test.surveyId,
-
             surveyInstanceId: {
                 in: instanceIds,
             },
-
             userId: {
                 in: students.map(
                     (student) => String(student.id)
                 ),
             },
         },
-
-        include: {
-            questionsAnswers: true,
-        },
+        include: {questionsAnswers: true,},
     });
 
-    const answerByUser = new Map(
-        answers.map((answer) => [
-            answer.userId,
-            answer,
-        ])
+    const answerByUser = new Map(answers.map((answer) => [answer.userId, answer,]));
+
+    const studentResults = await Promise.all(
+        students.map(async (student) => {
+            const answer = answerByUser.get(String(student.id));
+            if (!answer) {
+                return {
+                    studentId: student.id,
+                    studentLogin: student.email ?? student.externalId ?? `Schüler ${student.id}`,
+                    correctAnswers: 0,
+                    totalQuestions: 0,
+                    finished: false,
+                };
+            }
+
+            let correctAnswers = 0;
+            for (const questionAnswer of answer.questionsAnswers) {
+                const correct = await evaluateQuestionAnswer(questionAnswer.questionId, questionAnswer.answerJson);
+                if (correct) {correctAnswers++;}
+            }
+
+            return {
+                studentId: student.id,
+                studentLogin: student.email ?? student.externalId ?? `Schüler ${student.id}`,
+                correctAnswers,
+                totalQuestions: answer.questionIds.length,
+                finished: answer.quizFinished,
+            };
+        })
     );
-
-    const studentResults = students.map((student) => {
-        const answer = answerByUser.get(
-            String(student.id)
-        );
-
-        const correctAnswers =
-            answer?.questionsAnswers.filter(
-                (questionAnswer) =>
-                    questionAnswer.solved
-            ).length ?? 0;
-
-        return {
-            studentId: student.id,
-            studentLogin:
-                student.email ??
-                student.externalId ??
-                `Schüler ${student.id}`,
-
-            correctAnswers,
-            totalQuestions: answer?.questionIds.length ?? 0,
-            finished: answer?.quizFinished ?? false,
-        };
-    });
-
     return {
         id: test.id,
         title: test.survey.title,
@@ -597,4 +581,13 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
         students: studentResults,
         questionResults: [],
     };
+};
+
+const evaluateQuestionAnswer = async (questionId: number, answerJson: unknown): Promise<boolean> => {
+    if (!answerJson) {return false;}
+    const userAnswers = answerJson as UserAnswerInput[];
+    if (!Array.isArray(userAnswers)) {return false;}
+    const result = await evaluateAnswersService(questionId, userAnswers);
+    if (!result) {return false;}
+    return (result.score.length > 0 && result.score.every((score) => score === 1));
 };
