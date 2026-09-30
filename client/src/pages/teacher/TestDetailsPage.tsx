@@ -49,7 +49,7 @@ const TestDetailsPage = () => {
 
     if (loading) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
                 <Box sx={{display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400,}}>
                     <CircularProgress/>
                 </Box>
@@ -59,7 +59,7 @@ const TestDetailsPage = () => {
 
     if (!details) {
         return (
-            <TeacherLayout>
+            <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
                 <Box
                     sx={{maxWidth: 1100, mx: "auto", py: 4,}}>
                     <Alert severity="error">
@@ -73,7 +73,7 @@ const TestDetailsPage = () => {
     const finishedStudents = details.students.filter((student) => student.finished).length;
 
     return (
-        <TeacherLayout>
+        <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
             <Box sx={{maxWidth: 1100, mx: "auto", py: 4,}}>
                 <Snackbar
                     open={snackbar.open}
