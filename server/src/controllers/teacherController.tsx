@@ -48,10 +48,7 @@ export const getTeachers = async (_req: Request, res: Response) => {
     }
 };
 
-export const registerTeacher = async (
-    req: Request<{}, {}, RegisterTeacherBody>,
-    res: Response
-) => {
+export const registerTeacher = async (req: Request<{}, {}, RegisterTeacherBody>, res: Response) => {
     try {
         const teacher = await registerTeacherService(req.body);
         const token = jwt.sign(
@@ -71,7 +68,20 @@ export const registerTeacher = async (
         });
     } catch (err) {
         console.error(err);
-        res.status(500).json({
+        if (err instanceof Error) {
+            if (err.message === "Email already exists") {
+                return res.status(409).json({
+                    message: "EMAIL_ALREADY_REGISTERED",
+                });
+            }
+
+            if (err.message === "Privacy policy must be accepted") {
+                return res.status(400).json({
+                    message: "PRIVACY_POLICY_NOT_ACCEPTED",
+                });
+            }
+        }
+        return res.status(500).json({
             message: "Registration failed",
         });
     }

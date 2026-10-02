@@ -71,11 +71,10 @@ export const registerTeacher = async (data: RegisterTeacherRequest) => {
             body: JSON.stringify(data),
         }
     );
-
-    if (!response.ok) {
-        throw new Error("Registration failed");
-    }
     const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+    }
     saveTeacherSession(result);
     return result;
 };

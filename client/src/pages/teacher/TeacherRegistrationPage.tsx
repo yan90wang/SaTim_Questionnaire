@@ -24,7 +24,7 @@ const TeacherRegistrationPage = () => {
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
     const [privacyDialogOpen, setPrivacyDialogOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-
+    const isValidEmail = (email: string) => {return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);};
     const handleCloseSnackbar = () => {
         setSnackbar((prev) => ({
             ...prev,
@@ -51,7 +51,6 @@ const TeacherRegistrationPage = () => {
             [e.target.name]: e.target.value,
         });
     };
-
     const handleSubmit = async () => {
         if (!privacyAccepted) {
             setSnackbar({open: true, message: "Bitte akzeptieren Sie die Datenschutzerklärung.", severity: "error",});
@@ -88,15 +87,15 @@ const TeacherRegistrationPage = () => {
             await registerTeacher(teacherData);
             setSnackbar({open: true, message: "Registrierung erfolgreich.", severity: "success",});
             navigate("/teacher/classes");
-        } catch (err) {
-            console.error(err);
-            setSnackbar({
-                open: true,
-                message: "Registrierung fehlgeschlagen.",
-                severity: "error",
-            });
-        } finally {
-        setLoading(false);}
+        } catch (err: any) {
+            if (err.message === "EMAIL_ALREADY_REGISTERED") {
+            setSnackbar({open: true, message: "E-Mail ist bereits registriert.", severity: "error",});
+        } else {
+            setSnackbar({open: true, message: "Registrierung fehlgeschlagen.", severity: "error",});
+        }
+    } finally {
+        setLoading(false);
+    }
     };
 
     if (loading) {
@@ -176,6 +175,12 @@ const TeacherRegistrationPage = () => {
                             value={form.email}
                             onChange={handleChange}
                             required
+                            error={form.email.length > 0 && !isValidEmail(form.email)}
+                            helperText={
+                                form.email.length > 0 && !isValidEmail(form.email)
+                                    ? "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+                                    : ""
+                            }
                         />
 
                         <TextField

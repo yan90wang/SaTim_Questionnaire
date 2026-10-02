@@ -36,8 +36,12 @@ export const getTeachersService = async () => {
 };
 
 export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId, canton, privacyAccepted}: RegisterTeacherInput) => {
-    const existingTeacher = await prisma.teacher.findUnique({where: {email,},});
-
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingTeacher = await prisma.teacher.findUnique({
+        where: {
+            email: normalizedEmail,
+        },
+    });
     if (existingTeacher) {
         throw new Error("Email already exists");
     }
