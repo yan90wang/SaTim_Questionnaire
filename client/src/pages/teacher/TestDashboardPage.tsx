@@ -6,7 +6,7 @@ import {
     Card,
     CardContent,
     CardHeader,
-    Chip,
+    Chip, CircularProgress,
     Snackbar,
     TextField,
     Tooltip,
@@ -28,16 +28,20 @@ const TestDashboardPage = () => {
         message: "",
         severity: "success" as "success" | "error",
     });
+    const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
         const load = async () => {
             try {
+                setIsLoading(true);
                 const testData = await getClassTests(teacherId, isAdminView);
                 setTests(testData);
             } catch (err) {
                 console.error(err);
                 setSnackbar({open: true, message: "Tests konnten nicht geladen werden.", severity: "error",});
+            } finally {
+                setIsLoading(false);
             }
         };
         load();
@@ -98,7 +102,6 @@ const TestDashboardPage = () => {
                     <Typography variant="h4" fontWeight={600}>
                         Meine Tests
                     </Typography>
-
                     <Typography color="text.secondary" mt={1}>
                         Tests verwalten und für deine Klassen aktivieren.
                     </Typography>
@@ -118,19 +121,29 @@ const TestDashboardPage = () => {
                     </CardContent>
                 </Card>
 
-                {/* No results */}
-                {Object.keys(groupedTests).length === 0 && (
+                {/* Loading */}
+                {isLoading ? (
                     <Card>
                         <CardContent>
-                            <Typography color="text.secondary" textAlign="center">
+                            <Box
+                                sx={{minHeight: 180, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,}}>
+                                <CircularProgress size={32} />
+                                <Typography color="text.secondary">
+                                    Tests werden geladen...
+                                </Typography>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                ) : Object.keys(groupedTests).length === 0 ? (
+                    <Card>
+                        <CardContent>
+                            <Typography color="text.secondary" textAlign="center" sx={{py: 4}}>
                                 Keine Tests gefunden.
                             </Typography>
                         </CardContent>
                     </Card>
-                )}
-
-                {/* Classes */}
-                <Box display="flex" flexDirection="column" gap={4}>
+                ) : (
+                    <Box display="flex" flexDirection="column" gap={4}>
                     {Object.entries(groupedTests).map(
                         ([className, classTests]) => (
                             <Card key={className}>
@@ -143,7 +156,6 @@ const TestDashboardPage = () => {
                                     }
                                     subheader={`${classTests.length} ${classTests.length === 1 ? "Test" : "Tests"}`}
                                 />
-
                                 <CardContent sx={{pt: 0}}>
                                     {/* Table */}
                                     <Box sx={{width: "100%", overflowX: "auto",}}>
@@ -195,11 +207,11 @@ const TestDashboardPage = () => {
                                                             </Box>
 
                                                             <Box component="td" sx={{p: 1.5,}}>
-                                                            {test.description && (
-                                                                <Typography variant="body2" color="text.secondary" sx={{mt: 0.5,}}>
-                                                                    {test.description}
-                                                                </Typography>
-                                                            )}
+                                                                {test.description && (
+                                                                    <Typography variant="body2" color="text.secondary" sx={{mt: 0.5,}}>
+                                                                        {test.description}
+                                                                    </Typography>
+                                                                )}
                                                             </Box>
 
 
@@ -239,14 +251,14 @@ const TestDashboardPage = () => {
                                                             {/* Action */}
                                                             <Box component="td" sx={{p: 1.5, textAlign: "right",}}>
                                                                 <Tooltip title={"Aktive Tests werden den SuS angezeigt, deaktivierte Tests nicht."}>
-                                                                <Button
-                                                                    variant={test.active ? "outlined" : "contained"}
-                                                                    color={test.active ? "error" : "primary"}
-                                                                    size="small"
-                                                                    startIcon={!test.active ? (<PlayArrow/>) : undefined}
-                                                                    onClick={() => handleToggleTest(test)}>
-                                                                    {test.active ? "Deaktivieren" : "Aktivieren"}
-                                                                </Button></Tooltip>
+                                                                    <Button
+                                                                        variant={test.active ? "outlined" : "contained"}
+                                                                        color={test.active ? "error" : "primary"}
+                                                                        size="small"
+                                                                        startIcon={!test.active ? (<PlayArrow/>) : undefined}
+                                                                        onClick={() => handleToggleTest(test)}>
+                                                                        {test.active ? "Deaktivieren" : "Aktivieren"}
+                                                                    </Button></Tooltip>
                                                             </Box>
                                                         </Box>
                                                     )
@@ -259,6 +271,7 @@ const TestDashboardPage = () => {
                         )
                     )}
                 </Box>
+                )}
             </Box>
         </TeacherLayout>
     );
