@@ -52,6 +52,22 @@ const TeacherRegistrationPage = () => {
         });
     };
     const handleSubmit = async () => {
+        if (!form.firstName.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie einen Vornamen ein.", severity: "error",});
+            return;
+        }
+        if (!form.lastName.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie einen Nachnamen ein.", severity: "error",});
+            return;
+        }
+        if (!form.schoolName.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie eine Schule ein.", severity: "error",});
+            return;
+        }
+        if (!form.schoolAddress.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie eine Adresse ein.", severity: "error",});
+            return;
+        }
         if (!privacyAccepted) {
             setSnackbar({open: true, message: "Bitte akzeptieren Sie die Datenschutzerklärung.", severity: "error",});
             return;
@@ -256,17 +272,17 @@ const TeacherRegistrationPage = () => {
                     Datenschutzerklärung
                 </DialogTitle>
                 <DialogContent dividers>
-                    <Typography paragraph>
+                    <Typography >
                         Hier steht deine Datenschutzerklärung.
                     </Typography>
 
-                    <Typography paragraph>
+                    <Typography >
                         Du kannst hier den vollständigen Text zur Verarbeitung
                         personenbezogener Daten, zur Speicherdauer, zu den
                         Verantwortlichen und zu den Rechten der Lehrpersonen einfügen.
                     </Typography>
 
-                    <Typography paragraph>
+                    <Typography >
                         Weitere Informationen zum Datenschutz können hier ergänzt werden.
                     </Typography>
                 </DialogContent>
