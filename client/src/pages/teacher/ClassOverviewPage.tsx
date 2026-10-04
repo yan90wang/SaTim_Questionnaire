@@ -67,6 +67,10 @@ const ClassOverviewPage = () => {
     }, [teacherId]);
 
     const handleCreateClass = async () => {
+        if (!newClass.name.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie einen Klassennamen ein.", severity: "error",});
+            return;
+        }
         if (newClass.type === "CUSTOM" && customType.trim() === "") {
                setSnackbar({open: true, message: "Bitte eigenen Schultyp eingeben.", severity: "error",});
             return;

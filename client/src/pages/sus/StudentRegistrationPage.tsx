@@ -84,11 +84,7 @@ const StudentRegistrationPage = () => {
             return;
         }
         if (form.password.length < 6) {
-            setSnackbar({
-                open: true,
-                message: "Das Passwort muss mindestens 6 Zeichen lang sein.",
-                severity: "error",
-            });
+            setSnackbar({open: true, message: "Das Passwort muss mindestens 6 Zeichen lang sein.", severity: "error",});
             return;
         }
         try {
@@ -100,10 +96,7 @@ const StudentRegistrationPage = () => {
             console.error(err);
             setSnackbar({
                 open: true,
-                message:
-                    err instanceof Error
-                        ? err.message
-                        : "Registrierung fehlgeschlagen.",
+                message: err instanceof Error ? err.message : "Registrierung fehlgeschlagen.",
                 severity: "error",
             });
         }
@@ -117,18 +110,9 @@ const StudentRegistrationPage = () => {
                     <CardContent>
                         {step === 1 && (
                             <>
-                                <Typography variant="h4" gutterBottom>
-                                    Schüler Registrierung
-                                </Typography>
-
-                                <Typography mb={2}>
-                                    Bitte gib zuerst dein Geburtsdatum ein.
-                                </Typography>
-
-                                <TextField fullWidth label="Geburtsdatum" type="date" InputLabelProps={{shrink:true,}} value={birthday} onChange={(e)=>
-                                        setBirthday(e.target.value)
-                                    }
-                                />
+                                <Typography variant="h4" gutterBottom>Schüler Registrierung</Typography>
+                                <Typography mb={2}>Bitte gib zuerst dein Geburtsdatum ein.</Typography>
+                                <TextField fullWidth label="Geburtsdatum" type="date" InputLabelProps={{shrink:true,}} value={birthday} onChange={(e)=> setBirthday(e.target.value)}/>
                                 <Button sx={{mt:3}} variant="contained" onClick={handleBirthdaySubmit}>Weiter</Button>
                                 {under14 && (
                                     <Alert severity="info" sx={{ mt: 3 }}>

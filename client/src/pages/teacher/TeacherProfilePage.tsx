@@ -41,7 +41,6 @@ const TeacherProfilePage = () => {
 
     useEffect(() => {
         if (!teacherId) return;
-
         const fetchTeacher = async () => {
             setIsLoading(true);
             try {
@@ -80,33 +79,49 @@ const TeacherProfilePage = () => {
 
     const handleSave = async () => {
         if (!teacherId) return;
+        if (!teacher.first_name.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie einen Vornamen ein.", severity: "error",});
+            return;
+        }
+
+        if (!teacher.last_name.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie einen Nachnamen ein.", severity: "error",});
+            return;
+        }
+
+        if (!teacher.school_name.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie eine Schule ein.", severity: "error",});
+            return;
+        }
+
+        if (!teacher.school_address.trim()) {
+            setSnackbar({open: true, message: "Bitte geben Sie eine Schuladresse ein.", severity: "error",});
+            return;
+        }
+
+        if (!teacher.canton) {
+            setSnackbar({open: true, message: "Bitte wählen Sie einen Kanton aus.", severity: "error",});
+            return;
+        }
         setIsLoading(true);
 
         try {
             const updatedTeacher = await updateTeacher(
                 teacherId,
                 {
-                    first_name: teacher.first_name,
-                    last_name: teacher.last_name,
+                    first_name: teacher.first_name.trim(),
+                    last_name: teacher.last_name.trim(),
                     email: teacher.email,
-                    school_name: teacher.school_name,
-                    school_address: teacher.school_address,
-                    canton: teacher.canton
+                    school_name: teacher.school_name.trim(),
+                    school_address: teacher.school_address.trim(),
+                    canton: teacher.canton,
                 }
             );
             setTeacher(updatedTeacher);
-            setSnackbar({
-                open: true,
-                message: "Änderungen wurden erfolgreich gespeichert.",
-                severity: "success",
-            });
+            setSnackbar({open: true, message: "Änderungen wurden erfolgreich gespeichert.", severity: "success",});
         } catch (err) {
             console.error("Failed to update teacher:", err);
-            setSnackbar({
-                open: true,
-                message: "Änderungen konnten nicht gespeichert werden.",
-                severity: "error",
-            });
+            setSnackbar({open: true, message: "Änderungen konnten nicht gespeichert werden.", severity: "error",});
         } finally {
             setIsLoading(false);
         }
@@ -144,6 +159,7 @@ const TeacherProfilePage = () => {
                             label="Vorname"
                             value={teacher.first_name}
                             fullWidth
+                            required
                             disabled={isLoading}
                             onChange={(e) =>
                                 handleChange(
@@ -157,6 +173,7 @@ const TeacherProfilePage = () => {
                             label="Nachname"
                             value={teacher.last_name}
                             fullWidth
+                            required
                             disabled={isLoading}
                             onChange={(e) =>
                                 handleChange(
@@ -171,6 +188,7 @@ const TeacherProfilePage = () => {
                             type="email"
                             value={teacher.email}
                             fullWidth
+                            required
                             disabled={true}
                             onChange={(e) =>
                                 handleChange(
@@ -184,12 +202,10 @@ const TeacherProfilePage = () => {
                             label="Schule"
                             value={teacher.school_name}
                             fullWidth
+                            required
                             disabled={isLoading}
                             onChange={(e) =>
-                                handleChange(
-                                    "school_name",
-                                    e.target.value
-                                )
+                                handleChange("school_name", e.target.value)
                             }
                         />
 
@@ -197,6 +213,7 @@ const TeacherProfilePage = () => {
                             label="Schuladresse"
                             value={teacher.school_address}
                             fullWidth
+                            required
                             multiline
                             rows={2}
                             disabled={isLoading}
@@ -217,10 +234,7 @@ const TeacherProfilePage = () => {
                                 labelId="teacher-canton-label"
                                 value={teacher.canton ?? ""}
                                 label="Kanton"
-                                onChange={(e) =>
-                                    handleChange("canton", e.target.value)
-                                }
-                            >
+                                onChange={(e) => handleChange("canton", e.target.value)}>
                                 {SWISS_CANTONS.map((canton) => (
                                     <MenuItem key={canton.value} value={canton.value}>
                                         {canton.label}
