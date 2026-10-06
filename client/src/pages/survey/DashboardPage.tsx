@@ -51,8 +51,8 @@ interface Survey {
 const DashboardPage = () => {
     const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState<Survey["status"] | "ALL">("ALL");
+    const [activeInstanceFilter, setActiveInstanceFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");    const [teacherAssignedFilter, setTeacherAssignedFilter] = useState<"ALL" | "ASSIGNED">("ALL");
     const [teamId, setTeamId] = useState<number | null>(null);
-
     const [surveys, setSurveys] = useState<Survey[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -231,6 +231,33 @@ const DashboardPage = () => {
                             <MenuItem value="Geschlossen">Geschlossen</MenuItem>
                         </Select>
                     </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <InputLabel>Durchführungen</InputLabel>
+                        <Select
+                            value={activeInstanceFilter}
+                            label="Durchführungen"
+                            onChange={(e) => setActiveInstanceFilter(e.target.value as "ALL" | "ACTIVE" | "INACTIVE")}>
+                            <MenuItem value="ALL">Alle</MenuItem>
+                            <MenuItem value="ACTIVE">
+                                Nur aktive Durchführungen
+                            </MenuItem>
+                            <MenuItem value="INACTIVE">
+                                Ohne aktive Durchführungen
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 210 }}>
+                        <InputLabel>Lehrpersonen</InputLabel>
+                        <Select
+                            value={teacherAssignedFilter}
+                            label="Lehrpersonen"
+                            onChange={(e) => setTeacherAssignedFilter(e.target.value as "ALL" | "ASSIGNED")}>
+                            <MenuItem value="ALL">Alle</MenuItem>
+                            <MenuItem value="ASSIGNED">
+                                Lehrpersonen zugewiesen
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
                 </Box>
                 <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
                     <DialogTitle>Erhebung erstellen</DialogTitle>
@@ -282,8 +309,13 @@ const DashboardPage = () => {
                     </Box>
                 ) : (
                     <Grid container spacing={3}>
-                        {surveys.filter((s) => statusFilter === "ALL" || s.status === statusFilter).map((survey) => (
-                            //@ts-ignore
+                        {surveys.filter((s) => {
+                        const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
+                        const matchesActiveInstance = activeInstanceFilter === "ALL" || (activeInstanceFilter === "ACTIVE" && s.hasActiveInstance === true) || (activeInstanceFilter === "INACTIVE" && !s.hasActiveInstance);
+                        const matchesTeacherAssigned = teacherAssignedFilter === "ALL" || s.teacherAssigned;
+                        return matchesStatus && matchesActiveInstance && matchesTeacherAssigned;
+                    })
+                        .map((survey) => (                            //@ts-ignore
                             <Grid item key={survey.id} sx={{ width: 350, flexGrow: 0 }}>
                                 <Card>
                                     <CardHeader

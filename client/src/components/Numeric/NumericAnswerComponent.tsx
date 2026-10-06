@@ -87,7 +87,7 @@ export const NumericAnswerComponent: React.FC<NodeViewProps> = ({ node, updateAt
                         setValue(input);
                         updateAttributes({ value: input });
                     }}
-                    placeholder="0.5 or 1/2"
+                    placeholder="0.5 od 1/2"
                     size="small"
                     variant="outlined"
                     inputRef={textareaRef}
