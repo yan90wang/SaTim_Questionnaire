@@ -108,15 +108,10 @@ export const getAssignedTests = async (): Promise<StudentTest[]> => {
             },
         }
     );
-
     if (!response.ok) {
         const error = await response.text();
-
-        throw new Error(
-            `Failed to fetch assigned tests: ${error}`
-        );
+        throw new Error(`Failed to fetch assigned tests: ${error}`);
     }
-
     return response.json();
 };
 

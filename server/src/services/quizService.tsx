@@ -185,6 +185,16 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 },
             });
         }
+    } else {
+        await prisma.adaptiveAnswer.update({
+            where: {
+                id: adaptiveAnswer.id,
+            },
+            data: {
+                quizFinished: true,
+                currentQuestionId: null,
+            },
+        });
     }
     const cleanNextQuestion: QuizQuestion | null = nextQuestion ? {id: nextQuestion.id, contentJson: nextQuestion.contentJson,} : null;
     return {

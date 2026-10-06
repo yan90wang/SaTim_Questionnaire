@@ -24,16 +24,9 @@ import {Visibility, VisibilityOff} from "@mui/icons-material";
 const StudentRegistrationPage = () => {
     const [step, setStep] = useState(1);
     const [birthday, setBirthday] = useState("");
-    const [form, setForm] = useState({
-        email: "",
-        password: "",
-        birthday: "",
-    });
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error",
-    });
+    const [form, setForm] = useState({email: "", password: "", birthday: "",});
+    const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
+    const isValidEmail = (email: string) => {const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;return emailRegex.test(email.trim());};
     const { registrationToken } = useParams();
     const navigate = useNavigate();
     const [under14, setUnder14] = useState(false);
@@ -79,6 +72,15 @@ const StudentRegistrationPage = () => {
     };
 
     const handleRegister = async () => {
+        if (!form.email.trim()) {
+            setSnackbar({open: true, message: "Bitte gib eine E-Mail-Adresse ein.", severity: "error",});
+            return;
+        }
+
+        if (!isValidEmail(form.email)) {
+            setSnackbar({open: true, message: "Bitte gib eine gültige E-Mail-Adresse ein.", severity: "error",});
+            return;
+        }
         if (!privacyAccepted || !dataProcessingAccepted) {
             setSnackbar({open: true, message: "Bitte bestätige beide Datenschutzbestimmungen.", severity: "error",});
             return;
@@ -126,7 +128,16 @@ const StudentRegistrationPage = () => {
                             <>
                                 <Typography variant="h4" gutterBottom>Deine Daten</Typography>
                                 <Box display="flex" flexDirection="column" gap={2}>
-                                    <TextField label="E-Mail" name="email" type="email" value={form.email} onChange={handleChange}/>
+                                    <TextField
+                                        label="E-Mail"
+                                        name="email"
+                                        type="email"
+                                        value={form.email}
+                                        onChange={handleChange}
+                                        required
+                                        error={form.email.length > 0 && !isValidEmail(form.email)}
+                                        helperText={form.email.length > 0 && !isValidEmail(form.email) ? "Bitte gib eine gültige E-Mail-Adresse ein." : ""}
+                                    />
                                     <TextField
                                         label="Passwort"
                                         name="password"
