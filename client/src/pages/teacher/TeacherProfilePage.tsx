@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import TeacherLayout from "../../layouts/TeacherLayout.tsx";
 import {getTeacherById, type Teacher, updateTeacher} from "../../services/TeacherService.tsx";
-import { SWISS_CANTONS } from "./Cantons.tsx";
+import { SWISS_CANTONS } from "./ClassUtils.tsx";
 import {useParams} from "react-router-dom";
 
 const TeacherProfilePage = () => {

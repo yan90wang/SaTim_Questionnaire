@@ -12,20 +12,21 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
+    MenuItem,
     Snackbar,
     TextField,
     Typography,
 } from "@mui/material";
-import {ArrowBack, ContentCopy} from "@mui/icons-material";
+import {ArrowBack, ContentCopy, Edit} from "@mui/icons-material";
 import {useNavigate, useParams} from "react-router-dom";
-
 import TeacherLayout from "../../layouts/TeacherLayout";
 import {
     getClass,
     getStudents,
     registerUnder14Student,
-    type SchoolClass,
+    type SchoolClass, updateClass,
 } from "../../services/ClassService";
+import { SchoolClassType } from "./ClassUtils.tsx";
 
 interface Student {
     id: number;
@@ -47,15 +48,13 @@ const ClassPage = () => {
     const [under14DialogOpen, setUnder14DialogOpen] = useState(false);
     const [under14Birthday, setUnder14Birthday] = useState("");
     const [registeringUnder14, setRegisteringUnder14] = useState(false);
-    const [generatedCredentials, setGeneratedCredentials] = useState<{
-        email: string;
-        password: string;
-    } | null>(null);
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error",
-    });
+    const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string; } | null>(null);
+    const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
+    const [editClassDialogOpen, setEditClassDialogOpen] = useState(false);
+    const [newClassName, setNewClassName] = useState("");
+    const [newClassType, setNewClassType] = useState("");
+    const [savingClass, setSavingClass] = useState(false);
+    const [customType, setCustomType] = useState("");
     const getAge = (birthday: string): number | null => {
         if (!birthday) return null;
         const birthDate = new Date(`${birthday}T00:00:00`);
@@ -141,6 +140,29 @@ const ClassPage = () => {
         }
     };
 
+    const handleUpdateClass = async () => {
+        if (!schoolClass || !newClassName.trim() || !newClassType) return;
+        const trimmedName = newClassName.trim();
+        if (trimmedName === schoolClass.name && newClassType === schoolClass.type) {
+            setEditClassDialogOpen(false);
+            return;
+        }
+        try {
+            setSavingClass(true);
+            const finalType = newClassType === "CUSTOM" ? customType.trim() : newClassType;
+            await updateClass(schoolClass.id, {name: newClassName.trim(), type: finalType,}, isAdminView);
+            setSavingClass(true);
+            setSchoolClass(prev => prev ? {...prev, name: trimmedName, type: newClassType} : prev);
+            setEditClassDialogOpen(false);
+            setSnackbar({open: true, message: "Klasse erfolgreich aktualisiert.", severity: "success",});
+        } catch (err) {
+            console.error(err);
+            setSnackbar({open: true, message: err instanceof Error ? err.message : "Klasse konnte nicht aktualisiert werden.", severity: "error",});
+        } finally {
+            setSavingClass(false);
+        }
+    };
+
     if (loading || loadingSuS) {
         return (
             <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
@@ -186,7 +208,24 @@ const ClassPage = () => {
                 </Button>
 
                 <Card sx={{mb: 3}}>
-                    <CardHeader title={schoolClass.name}/>
+                    <CardHeader title={schoolClass.name}
+                                action={
+                                    <IconButton
+                                        color="primary"
+                                        title="Klasse bearbeiten"
+                                        onClick={() => {
+
+                                            const isStandardType = Object.values(SchoolClassType)
+                                                .some(type => type === schoolClass.type);
+                                            setNewClassType(isStandardType ? schoolClass.type : "CUSTOM");
+                                            setCustomType(isStandardType ? "" : schoolClass.type);
+                                            setNewClassName(schoolClass.name);
+                                            setEditClassDialogOpen(true);
+                                        }}
+                                    >
+                                        <Edit/>
+                                    </IconButton>
+                                }/>
                     <CardContent>
 
                         <Typography variant="body1">
@@ -389,6 +428,75 @@ const ClassPage = () => {
                     )}
                 </DialogActions>
             </Dialog>
+
+            <Dialog
+                open={editClassDialogOpen}
+                onClose={() => {
+                    if (!savingClass) setEditClassDialogOpen(false);
+                }}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Klasse bearbeiten</DialogTitle>
+
+                <DialogContent>
+                    <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 1}}>
+                        <TextField
+                            autoFocus
+                            fullWidth
+                            label="Klassenname"
+                            value={newClassName}
+                            onChange={(e) => setNewClassName(e.target.value)}
+                            disabled={savingClass}
+                        />
+
+                        <TextField select fullWidth label="Schultyp" value={newClassType} onChange={(e) => setNewClassType(e.target.value)} disabled={savingClass}>
+                            {Object.values(SchoolClassType).map((type) => (
+                                <MenuItem key={type} value={type}>
+                                    {type}
+                                </MenuItem>
+                            ))}
+
+                            <MenuItem value="CUSTOM">
+                                Anderer Schultyp
+                            </MenuItem>
+                        </TextField>
+
+                        {newClassType === "CUSTOM" && (
+                            <TextField
+                                fullWidth
+                                label="Eigener Schultyp"
+                                value={customType}
+                                onChange={(e) => setCustomType(e.target.value)}
+                                disabled={savingClass}
+                                required
+                            />
+                        )}
+                    </Box>
+                </DialogContent>
+
+                <DialogActions>
+                    <Button
+                        onClick={() => setEditClassDialogOpen(false)}
+                        disabled={savingClass}>
+                        Abbrechen
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={handleUpdateClass}
+                        disabled={!newClassName.trim() || !newClassType || (newClassName.trim() === schoolClass.name && newClassType === schoolClass.type) || savingClass}>
+                        {savingClass ? (
+                            <>
+                                <CircularProgress size={20} color="inherit" sx={{mr: 1}}/>Speichern...
+                            </>
+                        ) : (
+                            "Speichern"
+                        )}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </TeacherLayout>
     );
 };

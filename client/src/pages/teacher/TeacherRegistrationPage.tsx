@@ -10,7 +10,7 @@ import {
 import {registerTeacher} from "../../services/TeacherService.tsx";
 import GeneralLayout from "../../layouts/GeneralLayout.tsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {SWISS_CANTONS} from "./Cantons.tsx";
+import {SWISS_CANTONS} from "./ClassUtils.tsx";
 import {Visibility, VisibilityOff} from "@mui/icons-material";
 
 const TeacherRegistrationPage = () => {

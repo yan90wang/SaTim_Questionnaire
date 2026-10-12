@@ -26,3 +26,13 @@ export const SWISS_CANTONS = [
     {value: "ZG", label: "Zug"},
     {value: "ZH", label: "Zürich"},
 ];
+
+// @ts-ignore
+export enum SchoolClassType {
+    KANTI_KURZ_1 = "KANTI_KURZ_1",
+    KANTI_KURZ_2 = "KANTI_KURZ_2",
+    KANTI_LANG_1 = "KANTI_LANG_1",
+    SEK_7 = "SEK_7",
+    SEK_8 = "SEK_8",
+    SEK_9 = "SEK_9",
+}
