@@ -401,3 +401,34 @@ export const uploadAdaptiveFiles = async (surveyId: string, knowledgeSpaceFile: 
 
     return response.json();
 };
+
+
+export async function getAdaptiveQuestionDetailsExport(surveyId: number, surveyTitle: string): Promise<Blob> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+        throw new Error("User not authenticated");
+    }
+    const res = await fetch(
+        `${API_BASE}/api/survey/adaptiveQuestionDetails`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                surveyId,
+                surveyTitle,
+            }),
+        }
+    );
+
+    if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(
+            `Failed to fetch adaptive questions excel export: ${msg}`
+        );
+    }
+
+    return await res.blob();
+}

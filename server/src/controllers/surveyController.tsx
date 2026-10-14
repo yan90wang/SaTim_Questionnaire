@@ -3,7 +3,7 @@ import {
     createSurvey,
     createSurveyInstance,
     deleteSurveyById,
-    deleteSurveyInstanceById,
+    deleteSurveyInstanceById, getAdaptiveQuestionDetailsExportService,
     getAllSurveys,
     getBookletsBySurveyId,
     getQuestionDetailsExport,
@@ -320,11 +320,9 @@ export const getQuestionsByIdsHandler = async (req: Request, res: Response) => {
 export const getQuestionDetailsByIdsHandler = async (req: Request, res: Response) => {
     try {
         const { ids, surveyTitle, surveyId } = req.body as { ids: number[]; surveyTitle: string, surveyId: number };
-
         if (!Array.isArray(ids) || ids.length === 0) {
             return res.status(400).json({message: "Question IDs are required to fetch details"});
         }
-
         const buffer = await getQuestionDetailsExport(ids, surveyId, surveyTitle);
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", `attachment; filename=Erhebung_${surveyTitle}.xlsx`);
@@ -332,6 +330,24 @@ export const getQuestionDetailsByIdsHandler = async (req: Request, res: Response
     } catch (err) {
         console.error("Error exporting question details:", err);
         res.status(500).json({message: "Failed to export question details"});
+    }
+};
+
+
+
+export const getAdaptiveQuestionDetailsExportHandler = async (req: Request, res: Response) => {
+    try {
+        const { surveyId, surveyTitle } = req.body as { surveyId: number; surveyTitle: string; };
+        if (!Number.isInteger(surveyId) || surveyId <= 0) {
+            return res.status(400).json({message: "Valid survey ID is required",});
+        }
+        const buffer = await getAdaptiveQuestionDetailsExportService(surveyId, surveyTitle);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="Erhebung_${surveyId}_Adaptive.xlsx"`);
+        res.send(buffer);
+    } catch (err) {
+        console.error("Error exporting adaptive question details:", err);
+        res.status(500).json({message: "Failed to export adaptive question details",});
     }
 };
 

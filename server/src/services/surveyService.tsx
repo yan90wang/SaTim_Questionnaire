@@ -439,6 +439,87 @@ export const getQuestionDetailsExport = async (ids: number[], surveyId: number, 
     });
 };
 
+
+export const getAdaptiveQuestionDetailsExportService = async (surveyId: number, surveyTitle: string): Promise<Buffer> => {
+    const survey = await prisma.survey.findUnique({
+        where: { id: surveyId },
+        select: {
+            mode: true,
+            ksQuestionIds: true,
+        },
+    });
+    if (!survey) {throw new Error("Survey not found");}
+    if (survey.mode !== "ADAPTIV") {throw new Error("Survey is not adaptive");}
+    const ids = survey.ksQuestionIds;
+    if (ids.length === 0) {throw new Error("No questions found for adaptive survey");}
+    const questions = await prisma.question.findMany({
+        where: {id: { in: ids },},
+    });
+    const answers = await prisma.adaptiveAnswer.findMany({
+        where: {
+            surveyId,
+            questionsAnswers: {
+                some: {
+                    questionId: { in: ids },
+                },
+            },
+        },
+        include: {
+            questionsAnswers: {
+                where: {
+                    questionId: { in: ids },
+                },
+            },
+        },
+    });
+
+    const metadataMaps = questions.map(q => extractMetadataMap(q.metadata));
+    const allHeaders = Array.from(new Set(metadataMaps.flatMap(m => Object.keys(m))));
+    const rows = await Promise.all(
+        questions.map(async (question) => {
+            const meta = extractMetadataMap(question.metadata as any);
+            let total = 0;
+            let fullScoreCount = 0;
+            const maxPoints = extractAnswerTypes(question.contentJson).length;
+            for (const answer of answers) {
+                for (const qa of answer.questionsAnswers) {
+                    const qid = qa.questionId;
+                    if (question.id !== qid) continue;
+                    total++;
+                    if (qa.solved) {
+                        const answerArray = Array.isArray(qa.answerJson) ? qa.answerJson as any[] : [];
+                        const userAnswerInput: UserAnswerInput[] = answerArray.map(a => ({key: a.key, value: a.value, m: a.m, c: a.c,}));
+                        const result = await evaluateAnswersService(qid, userAnswerInput);
+                        const achievedScore = Array.isArray(result?.score) ? result.score.reduce((sum, num) => sum + num, 0) : 0;
+                        if (achievedScore === maxPoints) {
+                            fullScoreCount++;
+                        }
+                    }
+                }
+            }
+
+            const row: Record<string, any> = {
+                Downloaded: surveyTitle,
+                ID: question.id,
+                "Antwort Formate": [...new Set(extractAnswerTypes(question.contentJson).map(type => ANSWER_TYPE_LABELS[type] ?? type)),].join(", "),
+                "Max Points": maxPoints,
+                "Richtige Antworten": fullScoreCount,
+                "% Correct": total ? ((fullScoreCount / total) * 100).toFixed(2) + "% (von total " + total + ")" : "0% (von total 0)",
+                ...meta,
+            };
+            for (const key of allHeaders) {
+                row[key] = meta?.[key] ?? "";
+            }
+            return row;
+        })
+    );
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "QuestionDetails");
+    return XLSX.write(workbook, {type: "buffer", bookType: "xlsx",});
+};
+
 /**
  * Export survey answers for selected instances, including question scores
  */

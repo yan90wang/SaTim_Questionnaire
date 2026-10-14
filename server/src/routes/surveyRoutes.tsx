@@ -14,7 +14,7 @@ import {
     getSurveyExportHandler,
     getQuestionsByIdsHandler,
     getQuestionDetailsByIdsHandler,
-    setSurveyTeacherAssignableHandler,uploadAdaptiveFiles,
+    setSurveyTeacherAssignableHandler, uploadAdaptiveFiles, getAdaptiveQuestionDetailsExportHandler,
 } from "../controllers/surveyController.js";
 import { authenticateToken } from "../auth/authenticate.js";
 import multer from "multer";
@@ -42,6 +42,7 @@ router.post("/:id/export", getSurveyExportHandler);
 router.post("/teacher-assign/:surveyId", setSurveyTeacherAssignableHandler);
 router.post("/questions", getQuestionsByIdsHandler);
 router.post("/questionDetails", getQuestionDetailsByIdsHandler);
+router.post("/adaptiveQuestionDetails", getAdaptiveQuestionDetailsExportHandler);
 
 router.post(
     "/:id/upload-excels",

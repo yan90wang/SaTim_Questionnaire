@@ -22,6 +22,7 @@ import MainLayout from "../../layouts/MainLayout.tsx";
 import {
     assignSurveyToTeachers,
     type Booklet,
+    getAdaptiveQuestionDetailsExport,
     getQuestionDetailsByIds,
     getQuestionsByIds,
     getSurveyBooklets,
@@ -332,7 +333,12 @@ const SurveyUpdatePage = () => {
                     )
                 )
             );
-            const blob = await getQuestionDetailsByIds(uniqueQuestionIds, survey.title, survey.id);
+            let blob: Blob;
+            if (survey.mode === "ADAPTIV") {
+                blob = await getAdaptiveQuestionDetailsExport(survey.id, survey.title);
+            } else {
+                blob = await getQuestionDetailsByIds(uniqueQuestionIds, survey.title, survey.id);
+            }
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
@@ -469,7 +475,7 @@ const SurveyUpdatePage = () => {
             setSnackbar({open: true, message: "Adaptive Dateien konnten nicht heruntergeladen werden.", severity: "error",});
         }
     };
-
+    const canExportExcel = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && !!survey.knowledgeSpaceFileUrl && !!survey.probabilityDistributionFileUrl && !!survey.betaEtaFileUrl);
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
@@ -693,7 +699,8 @@ const SurveyUpdatePage = () => {
                         </Dialog>
                     </Paper>
                 )}
-                <Paper sx={{ p: 3 }}>
+                {canExportExcel && (
+                    <Paper sx={{ p: 3 }}>
                     <Typography sx={{ pb: 3 }} variant="h5">Exports</Typography>
                     {survey.mode === "DESIGN" && (<Button variant="outlined" sx={{ mr: 2 }} startIcon={<FileDownload />} onClick={handleExportClick} disabled={saving || preparingExport}>
                         {preparingExport ? (
@@ -715,7 +722,7 @@ const SurveyUpdatePage = () => {
                             </>
                         )}
                     </Button>
-                </Paper>
+                </Paper>)}
                 <Paper sx={{ p: 3 }}>
                     <Typography variant="h5">Zuweisung an alle Lehrpersonen</Typography>
                     <Typography sx={{ pb: 3 }}  color="text.secondary" >Schaltet die Erhebung für alle Lehrer frei, die Lehrperson kann dann eigenständig die Erhebung für einzelne Klassen aktivieren/deaktivieren.</Typography>
