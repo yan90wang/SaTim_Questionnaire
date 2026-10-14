@@ -1,4 +1,5 @@
 import {teacherAuthFetch} from "./TeacherAuthFetchHelper.tsx";
+import {authFetch} from "./AuthFetchHelper.tsx";
 // @ts-ignore
 const API_URL = import.meta.env.VITE_API_URL;
 export interface Teacher {
@@ -44,7 +45,7 @@ export interface TeacherLoginResponse {
 export const getTeachers = async (): Promise<Teacher[]> => {
     const token = localStorage.getItem("token");
 
-    const response = await teacherAuthFetch(`${API_URL}/api/teacher/get`, {
+    const response = await authFetch(`${API_URL}/api/teacher/get`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
