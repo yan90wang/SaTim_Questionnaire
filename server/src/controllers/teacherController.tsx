@@ -40,9 +40,15 @@ interface UpdateTeacherBody {
 
 export const getTeachers = async (_req: Request, res: Response) => {
     try {
-        const userId = (_req as any).user?.id;
-        if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+        const rawUserId = (_req as any).user?.id;
+        if (rawUserId === undefined || rawUserId === null) {
+            return res.status(401).json({error: "Not authenticated",});
+        }
 
+        const userId = Number(rawUserId);
+        if (!Number.isSafeInteger(userId) || userId <= 0) {
+            return res.status(401).json({error: "Invalid user ID",});
+        }
         const teachers = await getTeachersService(userId);
         res.json(teachers);
     } catch (err) {

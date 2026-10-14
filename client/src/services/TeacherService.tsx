@@ -44,7 +44,6 @@ export interface TeacherLoginResponse {
 }
 export const getTeachers = async (): Promise<Teacher[]> => {
     const token = localStorage.getItem("token");
-
     const response = await authFetch(`${API_URL}/api/teacher/get`, {
         method: "GET",
         headers: {
@@ -106,9 +105,7 @@ const saveTeacherSession = (result: TeacherLoginResponse) => {
     localStorage.setItem("teacherId", result.teacherId.toString());
 };
 
-export const getTeacherById = async (
-    id: number
-): Promise<Teacher> => {
+export const getTeacherById = async (id: number): Promise<Teacher> => {
     const response = await teacherAuthFetch(
         `${API_URL}/api/teacher/${id}`,
         {
