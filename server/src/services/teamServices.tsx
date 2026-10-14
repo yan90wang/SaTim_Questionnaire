@@ -4,19 +4,17 @@ import prisma from "../config/prismaClient.js";
 export const getTeamDetails = async (userId: number) => {
     const teamId = await getUserTeam(userId);
 
-    const teamDetails = await prisma.team.findFirst({
-        where: { id: teamId },
+    const teamDetails = await prisma.team.findUnique({
+        where: {
+            id: teamId,
+        },
         include: {
             users: {
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            first_name: true,
-                            last_name: true,
-                            email: true,
-                        },
-                    },
+                select: {
+                    id: true,
+                    first_name: true,
+                    last_name: true,
+                    email: true,
                 },
             },
         },
@@ -30,12 +28,11 @@ export const getTeamDetails = async (userId: number) => {
         id: teamDetails.id,
         name: teamDetails.name,
         description: teamDetails.description,
-
-        users: teamDetails.users.map((entry) => ({
-            id: entry.user.id,
-            first_name: entry.user.first_name,
-            last_name: entry.user.last_name,
-            email: entry.user.email,
+        users: teamDetails.users.map((user) => ({
+            id: user.id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
         })),
     };
 };
@@ -45,22 +42,27 @@ export async function getUserTeam(userId: any) {
     if (isNaN(parsedUserId)) {
         throw new Error("Invalid userId");
     }
-    const userTeams = await prisma.team_access.findMany({
-        where: {user_id: parsedUserId},
-        select: {team_id: true},
+    const user = await prisma.users.findUnique({
+        where: {
+            id: parsedUserId,
+        },
+        select: {
+            team_id: true,
+        },
     });
-    const teamId = userTeams[0]?.team_id;
-    if (teamId === undefined) {
+    if (!user || user.team_id === null) {
         throw new Error("No TeamId found!");
     }
-    return teamId;
+    return user.team_id;
 }
 
 export const addUserToTeam = async (teamId: number, userId: number) => {
-    return prisma.team_access.create({
+    return prisma.users.update({
+        where: {
+            id: userId,
+        },
         data: {
             team_id: teamId,
-            user_id: userId,
         },
     });
 };

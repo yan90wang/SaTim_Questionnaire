@@ -22,7 +22,10 @@ model users {
   updatedSurveyInstances surveyInstance[] @relation("UpdatedSurveyInstances")
   booklets               booklet[]        @relation("CreatedBooklets")
 
-  team_access team_access[]
+  team_id Int?
+  team    team? @relation(fields: [team_id], references: [id])
+
+  @@index([team_id])
 }
 
 model team {
@@ -31,24 +34,12 @@ model team {
   description String?
   createdAt   DateTime @default(now())
 
-  users           team_access[]
+  users           users[]
   questions       question[]
   surveys         survey[]
   surveyInstances surveyInstance[]
 
   teacher teacher[]
-}
-
-model team_access {
-  id Int @id @default(autoincrement())
-
-  team_id Int
-  user_id Int
-
-  team team  @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([team_id, user_id])
 }
 
 model question {

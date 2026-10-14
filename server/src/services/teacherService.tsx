@@ -24,21 +24,15 @@ export const getTeachersService = async (loggedInUserId: number) => {
             id: loggedInUserId,
         },
         select: {
-            team_access: {
-                select: {
-                    team_id: true,
-                },
-            },
+            team_id: true,
         },
     });
-
-    if (!user) {throw new Error("USER_NOT_FOUND");}
-    const teamIds = user.team_access.map(access => access.team_id);
+    if (!user || user.team_id === null) {
+        throw new Error("USER_OR_TEAM_NOT_FOUND");
+    }
     return prisma.teacher.findMany({
         where: {
-            teamId: {
-                in: teamIds,
-            },
+            teamId: user.team_id,
         },
         select: {
             id: true,
@@ -70,7 +64,9 @@ export const registerTeacherService = async ({firstName, lastName, email, passwo
     }
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const teamId = await getUserTeam(userId);
-
+    if (!teamId) {
+        throw new Error("No team found");
+    }
     return prisma.teacher.create({
         data: {
             first_name: firstName,

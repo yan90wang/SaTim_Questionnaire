@@ -63,14 +63,30 @@ interface UpdateSurveyInstanceInput {
 /**
  * Create a new survey
  */
-export const createSurvey = async (data: CreateSurveyInput): Promise<survey> => {
+export const createSurvey = async (data: CreateSurveyInput, userId: number): Promise<survey> => {
+    const parsedUserId = Number(userId);
+    if (isNaN(parsedUserId)) {
+        throw new Error("Invalid userId");
+    }
+    const user = await prisma.users.findUnique({
+        where: {
+            id: parsedUserId,
+        },
+        select: {
+            team_id: true,
+        },
+    });
+    if (!user || user.team_id === null) {
+        throw new Error("USER_OR_TEAM_NOT_FOUND");
+    }
     const createData: any = {
         title: data.title,
         mode: data.mode,
         status: data.status ?? "IN_PROGRESS",
         createdById: data.createdById,
         updatedById: data.updatedById,
-        isTwoTier: data.isTwoTier
+        isTwoTier: data.isTwoTier,
+        team_id: user.team_id,
     };
 
     if (data.description !== undefined) createData.description = data.description;
@@ -96,8 +112,19 @@ export const createSurvey = async (data: CreateSurveyInput): Promise<survey> => 
 /**
  * Get all surveys
  */
-export const getAllSurveys = async (): Promise<survey[]> => {
+export const getAllSurveys = async (userId: number): Promise<survey[]> => {
+    const user = await prisma.users.findUnique({
+        where: { id: userId },
+        select: { team_id: true },
+    });
+
+    if (!user || user.team_id === null) {
+        throw new Error("USER_OR_TEAM_NOT_FOUND");
+    }
     return prisma.survey.findMany({
+        where: {
+            team_id: user.team_id,
+        },
         include: {
             createdBy: {select: {id: true, first_name: true, last_name: true}},
             updatedBy: {select: {id: true, first_name: true, last_name: true}},

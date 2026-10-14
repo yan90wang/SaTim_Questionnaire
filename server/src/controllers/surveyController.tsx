@@ -57,8 +57,8 @@ export const createSurveyHandler = async (req: Request, res: Response) => {
                 validFrom: new Date(i.validFrom),
                 validTo: new Date(i.validTo),
             })) || [],
-            isTwoTier: isTwoTier
-        });
+            isTwoTier: isTwoTier,
+        }, userId);
 
         res.status(201).json(newSurvey);
     } catch (err) {
@@ -72,7 +72,15 @@ export const createSurveyHandler = async (req: Request, res: Response) => {
  */
 export const getAllSurveysHandler = async (_req: Request, res: Response) => {
     try {
-        const surveys = await getAllSurveys();
+        const rawUserId = (_req as any).user?.id;
+        if (rawUserId === undefined || rawUserId === null) {
+            return res.status(401).json({error: "Not authenticated",});
+        }
+        const userId = Number(rawUserId);
+        if (!Number.isSafeInteger(userId) || userId <= 0) {
+            return res.status(401).json({error: "Invalid user ID",});
+        }
+        const surveys = await getAllSurveys(userId);
         res.json(surveys);
     } catch (err) {
         console.error("Error fetching surveys:", err);
