@@ -34,10 +34,7 @@ interface TestInstanceBody {
  * ADMIN
  * GET /api/admin/teacher/:teacherId/classes
  */
-export const getClassesAdmin = async (
-    req: Request<{ teacherId: string }>,
-    res: Response
-) => {
+export const getClassesAdmin = async (req: Request<{ teacherId: string }>, res: Response) => {
     try {
         const userId = Number((req as any).user?.id);
         const teacherId = Number(req.params.teacherId);
@@ -54,44 +51,21 @@ export const getClassesAdmin = async (
             });
         }
 
-        await ensureTeacherBelongsToUserTeam(
-            userId,
-            teacherId
-        );
-
-        const classes = await getClassesService(
-            teacherId
-        );
-
+        await ensureTeacherBelongsToUserTeam(userId, teacherId);
+        const classes = await getClassesService(teacherId);
         return res.status(200).json(classes);
 
     } catch (err) {
-        console.error(
-            "Admin get classes error:",
-            err
-        );
-
-        if (
-            err instanceof Error &&
-            err.message === "Teacher not found"
-        ) {
-            return res.status(404).json({
-                message: "Teacher not found",
-            });
+        console.error("Admin get classes error:", err);
+        if (err instanceof Error && err.message === "Teacher not found") {
+            return res.status(404).json({message: "Teacher not found",});
         }
 
-        if (
-            err instanceof Error &&
-            err.message === "Access denied"
-        ) {
-            return res.status(403).json({
-                message: "Access denied",
-            });
+        if (err instanceof Error && err.message === "Access denied") {
+            return res.status(403).json({message: "Access denied",});
         }
 
-        return res.status(500).json({
-            message: "Server error",
-        });
+        return res.status(500).json({message: "Server error",});
     }
 };
 

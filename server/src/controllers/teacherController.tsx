@@ -40,7 +40,10 @@ interface UpdateTeacherBody {
 
 export const getTeachers = async (_req: Request, res: Response) => {
     try {
-        const teachers = await getTeachersService();
+        const userId = (_req as any).user?.id;
+        if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+        const teachers = await getTeachersService(userId);
         res.json(teachers);
     } catch (err) {
         console.error(err);

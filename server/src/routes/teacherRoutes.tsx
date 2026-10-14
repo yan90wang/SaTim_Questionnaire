@@ -7,13 +7,14 @@ import {
     updateTeacher
 } from "../controllers/teacherController.js";
 import {teacherAuth} from "../auth/teacherAuthenticate.js";
+import {authenticateToken} from "../auth/authenticate.js";
 
 const router = express.Router();
 
 
 router.post('/register', registerTeacher);
 router.post('/login', loginTeacher);
-router.get('/get', getTeachers)
+router.get('/get', authenticateToken, getTeachers)
 router.get("/:id", getTeacherById);
 router.put("/:id", teacherAuth, updateTeacher);
 

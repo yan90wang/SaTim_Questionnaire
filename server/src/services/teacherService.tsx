@@ -18,8 +18,28 @@ interface RegisterTeacherInput {
     privacyAccepted: boolean;
 }
 
-export const getTeachersService = async () => {
+export const getTeachersService = async (loggedInUserId: number) => {
+    const user = await prisma.users.findUnique({
+        where: {
+            id: loggedInUserId,
+        },
+        select: {
+            team_access: {
+                select: {
+                    team_id: true,
+                },
+            },
+        },
+    });
+
+    if (!user) {throw new Error("USER_NOT_FOUND");}
+    const teamIds = user.team_access.map(access => access.team_id);
     return prisma.teacher.findMany({
+        where: {
+            teamId: {
+                in: teamIds,
+            },
+        },
         select: {
             id: true,
             first_name: true,
