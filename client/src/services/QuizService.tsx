@@ -24,6 +24,7 @@ export interface Quiz {
     isTwoTier: boolean;
     feedback: {[key: string]: string};
     isAdaptive: boolean;
+    feedbackSurveyUrl?: string | null;
 }
 
 export interface LineEquationAnswer {

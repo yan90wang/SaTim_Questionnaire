@@ -104,7 +104,7 @@ export const updateSurveyHandler = async (req: Request, res: Response) => {
         const userId = Number((req as any).user?.id);
         if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
-        const { title, description, mode, status, adaptiveThreshold,} = req.body;
+        const { title, description, mode, status, adaptiveThreshold,feedbackSurveyUrl} = req.body;
 
         const updatePayload: any = { updatedById: userId };
         if (title) updatePayload.title = title;
@@ -112,8 +112,8 @@ export const updateSurveyHandler = async (req: Request, res: Response) => {
         if (mode) updatePayload.mode = mode === "adaptiv" ? "ADAPTIV" : "DESIGN";
         if (status) updatePayload.status = status;
         if (adaptiveThreshold !== undefined) {updatePayload.adaptiveThreshold = adaptiveThreshold;}
+        if (feedbackSurveyUrl !== undefined) {updatePayload.feedbackSurveyUrl = feedbackSurveyUrl;}
         const updatedSurvey = await updateSurveyById(id, updatePayload);
-
         res.json(updatedSurvey);
     } catch (err) {
         console.error("Error updating survey:", err);

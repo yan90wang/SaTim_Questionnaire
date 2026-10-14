@@ -119,6 +119,7 @@ model survey {
   betaEtaFileUrl                 String?
   adaptiveThreshold              Float?
   ksQuestionIds                  Int[]            @default([])
+  feedbackSurveyUrl              String?
 
   createdBy users    @relation("CreatedSurveys", fields: [createdById], references: [id])
   updatedBy users    @relation("UpdatedSurveys", fields: [updatedById], references: [id])

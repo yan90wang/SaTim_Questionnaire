@@ -30,6 +30,7 @@ export interface NextQuestion {
     feedback?: Record<string, string> | null;
     solved: boolean;
     isAdaptive: boolean;
+    feedbackSurveyUrl?: string | null;
 }
 
 export async function getQuiz(instanceId: string, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> {
@@ -138,15 +139,14 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             isTwoTier: survey.isTwoTier,
             feedback: null,
             isAdaptive: true,
+            feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
         };
     }
-
     const solvedQuestionIds = adaptiveAnswer.questionsAnswers.filter(qa => qa.solved).map(qa => qa.questionId);
     const distances = halfsplitQuestion(probs, ks);
     const availableCandidates = distances
         .map((distance, itemIndex) => ({itemIndex, questionId: itemColumns[itemIndex], distance,}))
         .filter(candidate => candidate.questionId !== undefined && !solvedQuestionIds.includes(candidate.questionId));
-
     const minimumDistance = Math.min(...availableCandidates.map(candidate => candidate.distance));
     const bestCandidates = availableCandidates.filter(candidate => candidate.distance === minimumDistance);
     const selectedCandidate = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
@@ -214,7 +214,8 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
         skippedQuestions: [],
         isTwoTier: survey.isTwoTier,
         feedback: null,
-        isAdaptive: true
+        isAdaptive: true,
+        feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
     };
 };
 
@@ -334,7 +335,8 @@ const getDesignQuiz = async (survey: survey, instance: surveyInstance, userId: s
         previousAnswer: previousAnswer ? previousAnswer.answerJson : null,
         skippedQuestions: skippedQuestionIds,
         isTwoTier: survey.isTwoTier,
-        feedback: previousFeedback ? previousFeedback : null
+        feedback: previousFeedback ? previousFeedback : null,
+        feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
     };
 }
 

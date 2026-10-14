@@ -69,6 +69,7 @@ interface SurveyDetail {
     probabilityDistributionFileUrl?: string | null;
     adaptiveThreshold?: number | null;
     betaEtaFileUrl?: string | null;
+    feedbackSurveyUrl?: string | null;
 }
 
 const statusLabels: Record<SurveyDetail["status"], string> = {
@@ -81,18 +82,13 @@ const statusLabels: Record<SurveyDetail["status"], string> = {
 const SurveyUpdatePage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-
     const [survey, setSurvey] = useState<SurveyDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [file1, setFile1] = useState<File | null>(null);
     const [file2, setFile2] = useState<File | null>(null);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
-        open: false,
-        message: "",
-        severity: "success",
-    });
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({open: false, message: "", severity: "success",});
     const [booklets, setBooklets] = useState<Booklet[]>([]);
     const [bookletDialogOpen, setBookletDialogOpen] = useState(false);
     const [validationErrors, setValidationErrors] = useState<any[]>([]);
@@ -107,6 +103,10 @@ const SurveyUpdatePage = () => {
     const [betaEtaFile, setBetaEtaFile] = useState<File | null>(null);
     const [adaptiveUploadDialogOpen, setAdaptiveUploadDialogOpen] = useState(false);
     const [uploadingAdaptiveFiles, setUploadingAdaptiveFiles] = useState(false);
+    const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+    const [feedbackUrlInput, setFeedbackUrlInput] = useState("");
+    const [savingFeedbackUrl, setSavingFeedbackUrl] = useState(false);
+    const [assignmentWarningOpen, setAssignmentWarningOpen] = useState(false);
 
     useEffect(() => {
         const fetchSurvey = async () => {
@@ -135,7 +135,8 @@ const SurveyUpdatePage = () => {
                     knowledgeSpaceFileUrl: data.knowledgeSpaceFileUrl ?? null,
                     probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
                     adaptiveThreshold: data.adaptiveThreshold ?? null,
-                    betaEtaFileUrl: data.betaEtaFileUrl ?? null
+                    betaEtaFileUrl: data.betaEtaFileUrl ?? null,
+                    feedbackSurveyUrl: data.feedbackSurveyUrl ?? null
                 });
             } catch (err) {
                 console.error("Failed to fetch survey:", err);
@@ -196,6 +197,7 @@ const SurveyUpdatePage = () => {
                 description: survey.description,
                 status: survey.status,
                 adaptiveThreshold: survey.mode === "ADAPTIV" ? survey.adaptiveThreshold : null,
+                feedbackSurveyUrl: survey.feedbackSurveyUrl?.trim() || null,
             });
             setSnackbar({ open: true, message: "Änderungen erfolgreich gespeichert.", severity: "success" });
         } catch (err) {
@@ -368,34 +370,16 @@ const SurveyUpdatePage = () => {
                 if (!prev) {
                     return prev;
                 }
-
-                return {
-                    ...prev,
-                    teacherAssigned: !prev.teacherAssigned,
-                };
+                return {...prev, teacherAssigned: !prev.teacherAssigned,};
             });
             if (teacherAssigned) {
-                setSnackbar({
-                    open: true,
-                    message: "Test wurde den Lehrpersonen zugewiesen.",
-                    severity: "success",
-                });
+                setSnackbar({open: true, message: "Test wurde den Lehrpersonen zugewiesen.", severity: "success",});
             } else {
-                setSnackbar({
-                    open: true,
-                    message: "Zuweisung wurde entfernt.",
-                    severity: "success",
-                });
+                setSnackbar({open: true, message: "Zuweisung wurde entfernt.", severity: "success",});
             }
-
         } catch (error) {
             console.error(error);
-
-            setSnackbar({
-                open: true,
-                message: "Test konnte nicht zugewiesen werden.",
-                severity: "error",
-            });
+            setSnackbar({open: true, message: "Test konnte nicht zugewiesen werden.", severity: "error",});
         }
     };
 
@@ -475,7 +459,52 @@ const SurveyUpdatePage = () => {
             setSnackbar({open: true, message: "Adaptive Dateien konnten nicht heruntergeladen werden.", severity: "error",});
         }
     };
-    const canExportExcel = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && !!survey.knowledgeSpaceFileUrl && !!survey.probabilityDistributionFileUrl && !!survey.betaEtaFileUrl);
+
+    const handleOpenFeedbackDialog = () => {
+        setFeedbackUrlInput(survey?.feedbackSurveyUrl ?? "");
+        setFeedbackDialogOpen(true);
+    };
+
+    const isValidFeedbackUrl = (value: string) => {
+        if (!value.trim()) return true;
+        try {
+            const url = new URL(value.trim());
+            return url.protocol === "https:" || url.protocol === "http:";
+        } catch {
+            return false;
+        }
+    };
+
+    const handleSaveFeedbackUrl = async () => {
+        if (!survey || !isValidFeedbackUrl(feedbackUrlInput)) return;
+        setSavingFeedbackUrl(true);
+        try {
+            const newUrl = feedbackUrlInput.trim() || null;
+            await updateSurvey(survey.id.toString(), {feedbackSurveyUrl: newUrl,});
+            setSurvey(prev => prev ? { ...prev, feedbackSurveyUrl: newUrl } : prev);
+            setFeedbackDialogOpen(false);
+            setSnackbar({open: true, message: newUrl ? "Feedback-URL erfolgreich gespeichert." : "Feedback-URL erfolgreich entfernt.", severity: "success",});
+        } catch (err) {
+            console.error("Failed to save feedback URL:", err);
+            setSnackbar({open: true, message: "Fehler beim Speichern der Feedback-URL.", severity: "error",});
+        } finally {
+            setSavingFeedbackUrl(false);
+        }
+    };
+
+    const handleAssignmentButtonClick = () => {
+        if (!survey) return;
+        if (survey.teacherAssigned) {
+            void handleSurveyAssignmentClick();
+            return;
+        }
+        if (!survey.feedbackSurveyUrl?.trim()) {
+            setAssignmentWarningOpen(true);
+            return;}
+        handleSurveyAssignmentClick();
+    };
+
+    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && !!survey.knowledgeSpaceFileUrl && !!survey.probabilityDistributionFileUrl && !!survey.betaEtaFileUrl);
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
@@ -699,8 +728,8 @@ const SurveyUpdatePage = () => {
                         </Dialog>
                     </Paper>
                 )}
-                {canExportExcel && (
-                    <Paper sx={{ p: 3 }}>
+
+                {isValidSurvey && (<Paper sx={{ p: 3 }}>
                     <Typography sx={{ pb: 3 }} variant="h5">Exports</Typography>
                     {survey.mode === "DESIGN" && (<Button variant="outlined" sx={{ mr: 2 }} startIcon={<FileDownload />} onClick={handleExportClick} disabled={saving || preparingExport}>
                         {preparingExport ? (
@@ -723,13 +752,44 @@ const SurveyUpdatePage = () => {
                         )}
                     </Button>
                 </Paper>)}
-                <Paper sx={{ p: 3 }}>
+
+                {isValidSurvey && (<Paper sx={{ p: 3 }}>
                     <Typography variant="h5">Zuweisung an alle Lehrpersonen</Typography>
                     <Typography sx={{ pb: 3 }}  color="text.secondary" >Schaltet die Erhebung für alle Lehrer frei, die Lehrperson kann dann eigenständig die Erhebung für einzelne Klassen aktivieren/deaktivieren.</Typography>
-                    <Button variant="contained" onClick={handleSurveyAssignmentClick}>
+                    <Button variant="contained" onClick={handleAssignmentButtonClick}>
                         {survey.teacherAssigned ? "Zuweisung entfernen" : "Zuweisen"}
                     </Button>
-                </Paper>
+                    <Divider sx={{ my: 3 }} />
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        Feedback-Umfrage
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+                        Optionaler Link zu einer Feedback-Umfrage, die nach Abschluss der Erhebung ausgefüllt werden kann.
+                    </Typography>
+                    {survey.feedbackSurveyUrl ? (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                                Aktuell hinterlegte Feedback-URL:
+                            </Typography>
+                            <Typography
+                                component="a"
+                                href={survey.feedbackSurveyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                sx={{color: "primary.main", textDecoration: "underline", overflowWrap: "anywhere", "&:hover": {color: "primary.dark",},}}>
+                                {survey.feedbackSurveyUrl}
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <Typography variant="body2" color="warning" sx={{ mb: 2 }}>
+                            Keine Feedback-URL hinterlegt!
+                        </Typography>
+                    )}
+                    <Button variant="outlined" onClick={handleOpenFeedbackDialog}>
+                        {survey.feedbackSurveyUrl ? "Feedback-URL bearbeiten" : "Feedback-URL setzen"}
+                    </Button>
+                </Paper>)}
+
                 <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} fullWidth maxWidth="sm">
                     <DialogTitle>Excel Dateien hochladen</DialogTitle>
                     <DialogContent>
@@ -803,21 +863,11 @@ const SurveyUpdatePage = () => {
                             </Typography>
 
                             <Button variant={knowledgeSpaceFile ? "contained" : "outlined"} component="label" startIcon={<UploadFile />}>
-                                {knowledgeSpaceFile
-                                    ? `Knowledge Space: ${knowledgeSpaceFile.name}`
-                                    : "Knowledge Space auswählen"}
-
-                                <input
-                                    hidden
-                                    type="file"
-                                    accept=".xlsx,.xls"
+                                {knowledgeSpaceFile ? `Knowledge Space: ${knowledgeSpaceFile.name}` : "Knowledge Space auswählen"}
+                                <input hidden type="file" accept=".xlsx,.xls"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
-
-                                        if (file) {
-                                            setKnowledgeSpaceFile(file);
-                                        }
-
+                                        if (file) {setKnowledgeSpaceFile(file);}
                                         e.target.value = "";
                                     }}
                                 />
@@ -878,6 +928,113 @@ const SurveyUpdatePage = () => {
                             {uploadingAdaptiveFiles
                                 ? "Wird hochgeladen..."
                                 : "Alle Dateien hochladen"}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog
+                    open={feedbackDialogOpen} onClose={() => {
+                        if (!savingFeedbackUrl) {
+                            setFeedbackDialogOpen(false);
+                        }
+                    }} fullWidth maxWidth="sm">
+                    <DialogTitle>
+                        {survey.feedbackSurveyUrl ? "Feedback-URL bearbeiten" : "Feedback-URL setzen"}
+                    </DialogTitle>
+
+                    <DialogContent>
+                        <Box sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Geben Sie die URL zur Feedback-Umfrage ein.
+                                Der Link kann jederzeit geändert oder entfernt werden.
+                            </Typography>
+
+                            <TextField
+                                label="Feedback-Umfrage URL"
+                                placeholder="https://www.soscisurvey.de/Erhebung032026_1/?ref=${userId}"
+                                fullWidth
+                                autoFocus
+                                value={feedbackUrlInput}
+                                onChange={(e) => setFeedbackUrlInput(e.target.value)}
+                                error={!isValidFeedbackUrl(feedbackUrlInput)}
+                                helperText={
+                                    !isValidFeedbackUrl(feedbackUrlInput) ? "Bitte geben Sie eine gültige URL mit https:// oder http:// ein." : "Optional – leer lassen, um die URL zu entfernen."
+                                }
+                                disabled={savingFeedbackUrl}
+                            />
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                <Typography variant="body2">
+                                    <strong>Teilnehmenden-ID im Feedback-Link:</strong>
+                                </Typography>
+
+                                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                    Falls die Teilnehmenden-ID an die Feedback-Umfrage übergeben werden soll, muss die URL den Platzhalter{" "}<strong>{"${userId}"}</strong> enthalten.
+                                    Dieser wird beim Öffnen des Links automatisch durch die tatsächliche Teilnehmenden-ID ersetzt.
+                                </Typography>
+
+                                <Typography variant="body2" sx={{ mt: 1, overflowWrap: "anywhere" }}>
+                                    <strong>Beispiel:</strong>
+                                    <br />
+                                    {"https://www.soscisurvey.de/Erhebung032026_1/?ref=${userId}"}
+                                </Typography>
+                            </Alert>
+                        </Box>
+                    </DialogContent>
+
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button
+                            onClick={() => setFeedbackDialogOpen(false)}
+                            disabled={savingFeedbackUrl}>
+                            Abbrechen
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            onClick={handleSaveFeedbackUrl}
+                            disabled={savingFeedbackUrl || !isValidFeedbackUrl(feedbackUrlInput)}>
+                            {savingFeedbackUrl ? "Speichern..." : "Speichern"}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog
+                    open={assignmentWarningOpen}
+                    onClose={() => setAssignmentWarningOpen(false)}
+                    fullWidth
+                    maxWidth="sm"
+                >
+                    <DialogTitle>
+                        Feedback-URL fehlt
+                    </DialogTitle>
+
+                    <DialogContent>
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                            <Typography variant="body2">
+                                Für diese Erhebung wurde noch keine Feedback-URL hinterlegt.
+                            </Typography>
+
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                                Teilnehmende werden nach Abschluss der Erhebung
+                                daher nicht zu einer Feedback-Umfrage weitergeleitet.
+                            </Typography>
+                        </Alert>
+
+                        <Typography variant="body2" sx={{ mt: 2 }}>
+                            Möchten Sie die Erhebung trotzdem den Lehrpersonen zuweisen?
+                        </Typography>
+                    </DialogContent>
+
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button onClick={() => setAssignmentWarningOpen(false)}>
+                            Abbrechen
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            color="warning"
+                            onClick={() => {
+                                setAssignmentWarningOpen(false);
+                                handleSurveyAssignmentClick();
+                            }}>
+                            Trotzdem zuweisen
                         </Button>
                     </DialogActions>
                 </Dialog>

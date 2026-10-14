@@ -142,10 +142,10 @@ export async function updateSurvey(id: string, data: {
     description?: string;
     status?: surveyStatus;
     adaptiveThreshold?: number | null;
+    feedbackSurveyUrl?: string | null;
 }) {
     const token = localStorage.getItem("token");
     if (!token) throw new Error("User not authenticated");
-
     const response = await fetch(`${API_BASE}/api/survey/${id}`, {
         method: "PUT",
         headers: {
@@ -154,11 +154,7 @@ export async function updateSurvey(id: string, data: {
         },
         body: JSON.stringify(data),
     });
-
-    if (!response.ok) {
-        throw new Error(`Failed to update survey (status ${response.status})`);
-    }
-
+    if (!response.ok) {throw new Error(`Failed to update survey (status ${response.status})`);}
     return await response.json();
 }
 

@@ -35,6 +35,7 @@ interface UpdateSurveyInput {
     updatedById: number;
     status?: survey_status;
     adaptiveThreshold?: number | null;
+    feedbackSurveyUrl?: string;
 }
 
 /**
@@ -144,12 +145,12 @@ export const getSurveyById = async (id: number) => {
  */
 export const updateSurveyById = async (id: number, data: UpdateSurveyInput): Promise<survey> => {
     const updateData: any = {updatedById: data.updatedById};
-
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.mode !== undefined) updateData.mode = data.mode;
     if (data.status !== undefined) updateData.status = data.status;
-    if (data.adaptiveThreshold !== undefined) {updateData.adaptiveThreshold = data.adaptiveThreshold;}
+    if (data.adaptiveThreshold !== undefined) updateData.adaptiveThreshold = data.adaptiveThreshold;
+    if (data.feedbackSurveyUrl !== undefined) updateData.feedbackSurveyUrl = data.feedbackSurveyUrl;
     return prisma.survey.update({
         where: {id},
         data: updateData,
@@ -438,7 +439,6 @@ export const getQuestionDetailsExport = async (ids: number[], surveyId: number, 
         bookType: "xlsx"
     });
 };
-
 
 export const getAdaptiveQuestionDetailsExportService = async (surveyId: number, surveyTitle: string): Promise<Buffer> => {
     const survey = await prisma.survey.findUnique({

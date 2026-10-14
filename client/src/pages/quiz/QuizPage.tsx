@@ -50,15 +50,7 @@ export default function QuizPage() {
     const [submitting, setSubmitting] = useState(false);
     const [geoGebraAnswers, setGeoGebraAnswers] = useState<GeoGebraAnswer[]>([]);
     const [feedback, setFeedback] = useState<{ [key: string]: string }>({});
-    const [snackbar, setSnackbar] = useState<{
-        open: boolean;
-        message: string;
-        severity: 'error' | 'success' | 'info' | 'warning'
-    }>({
-        open: false,
-        message: '',
-        severity: 'info',
-    });
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'error' | 'success' | 'info' | 'warning' }>({open: false, message: '', severity: 'info',});
     const [questionIds, setQuestionIds] = useState<number[]>([]);
     const [currentIndex, setCurrentIndex] = useState<number>(0);
     const questionStartRef = React.useRef<number>(Date.now())
@@ -74,14 +66,24 @@ export default function QuizPage() {
         });
     };
 
-    const handleSosciRedirect = async () => {
-        if (!userId || !id) return;
+    const handleFeedbackRedirect = async () => {
+        if (!userId || !id || !quiz?.feedbackSurveyUrl) return;
+        const feedbackUrl = quiz.feedbackSurveyUrl.replaceAll("${userId}", encodeURIComponent(userId));
+        try {
+            const parsedUrl = new URL(feedbackUrl);
+            if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+                throw new Error("Invalid feedback URL protocol");
+            }
+        } catch {
+            setSnackbar({open: true, message: "Die Feedback-URL ist ungültig.", severity: "error",});
+            return;
+        }
         try {
             await endQuizSession(userId, id);
         } catch (err) {
-            console.error(err);
+            console.error("Failed to end quiz session:", err);
         } finally {
-            window.location.href = `https://www.soscisurvey.de/Erhebung032026_1/?ref=${userId}`;
+            window.location.href = feedbackUrl;
         }
     };
 
@@ -404,12 +406,13 @@ export default function QuizPage() {
                 <Box sx={{border: '2px solid', borderRadius: 2, p: 3, mb: 4}}>
                     {quizFinished ? (
                         <Box sx={{ textAlign: 'center', py: 6 }}>
-                            <Typography variant="body1">
-                                Vielen Dank für Ihre Teilnahme.
+                            <Typography variant="h6">
+                                Vielen Dank für Ihre Teilnahme!
                             </Typography>
-                            <Button variant="contained" color="primary" onClick={handleSosciRedirect}>
-                                Bitte füllen Sie jetzt diese Umfrage aus!
-                            </Button>
+                            {quiz?.feedbackSurveyUrl?.trim() && (
+                                <Button variant="contained" color="primary" onClick={handleFeedbackRedirect}>
+                                    Bitte füllen Sie jetzt diese Umfrage aus!
+                                </Button>)}
                             <Box sx={{pb: 4}}></Box>
                             {!quiz?.isAdaptive && (
                                 <Button color="secondary" onClick={() => {setQuizFinished(false)}}>
