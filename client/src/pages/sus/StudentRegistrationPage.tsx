@@ -200,13 +200,7 @@ const StudentRegistrationPage = () => {
                 </Card>
 
             </Box>
-            <Dialog
-                open={privacyDialogOpen}
-                onClose={() => setPrivacyDialogOpen(false)}
-                fullWidth
-                maxWidth="md"
-                scroll="paper"
-                PaperProps={{sx: {borderRadius: 3, maxHeight: "85vh",},}}>
+            <Dialog open={privacyDialogOpen} onClose={() => setPrivacyDialogOpen(false)} fullWidth maxWidth="md" scroll="paper" PaperProps={{sx: {borderRadius: 3, maxHeight: "85vh",},}}>
                 <DialogTitle sx={{px: { xs: 2.5, sm: 4 }, py: 2.5, display: "flex", alignItems: "center", justifyContent: "space-between",}}>
                     <Box>
                         <Typography variant="h5" component="h2" fontWeight={700} sx={{ mb: 0.5 }}>
