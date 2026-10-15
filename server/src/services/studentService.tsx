@@ -122,7 +122,7 @@ export const getAssignedTestsService = async (studentId: number) => {
         },
         include: {
             survey: {
-                select: {id: true, title: true, description: true, mode: true,
+                select: {id: true, title: true, description: true, mode: true, feedbackSurveyUrl:true,
                     instances: {
                         where: {
                             validFrom: {lte: now,},
@@ -132,12 +132,12 @@ export const getAssignedTestsService = async (studentId: number) => {
                         include: {
                             answer: {
                                 where: {userId: String(studentId),},
-                                select: {id: true, quizFinished: true,},
+                                select: {id: true, quizFinished: true, updatedAt: true,},
                             },
                             adaptiveAnswer: {
                                 where: {userId: String(studentId),},
-                                select: {id: true, quizFinished: true,},
-                            },
+                                select: {id: true, quizFinished: true, updatedAt: true,},
+                            }
                         },
                     },
                 },
@@ -161,7 +161,8 @@ export const getAssignedTestsService = async (studentId: number) => {
             } else {
                 status = "OPEN";
             }
-
+            const ONE_HOUR_MS = 60 * 60 * 1000;
+            const canModify = !existingAnswer?.quizFinished || now.getTime() - existingAnswer.updatedAt.getTime() < ONE_HOUR_MS;
             return {
                 id: classTest.id,
                 instanceId: instance.id,
@@ -174,6 +175,8 @@ export const getAssignedTestsService = async (studentId: number) => {
                 validFrom: instance.validFrom,
                 validTo: instance.validTo,
                 status,
+                feedbackSurveyUrl: classTest.survey.feedbackSurveyUrl,
+                canModify
             };
         })
     );

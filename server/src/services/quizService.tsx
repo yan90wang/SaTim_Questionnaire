@@ -340,6 +340,17 @@ const getDesignQuiz = async (survey: survey, instance: surveyInstance, userId: s
     };
 }
 
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const checkQuizModificationAllowed = (answer: { quizFinished: boolean; updatedAt: Date; }) => {
+    if (!answer.quizFinished) {
+        return;
+    }
+    const timeSinceLastUpdate = Date.now() - answer.updatedAt.getTime();
+    if (timeSinceLastUpdate >= ONE_HOUR_MS) {
+        throw new Error("QUIZ_MODIFICATION_TIME_EXPIRED");
+    }
+};
+
 export async function submitQuizAnswer(userId: string, questionId: number, instanceId: number, answerJson: Prisma.InputJsonValue, isSolved: boolean) {
     const surveyInstance = await prisma.surveyInstance.findUnique({
         where: {
@@ -376,6 +387,7 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
         if (!adaptiveAnswer) {
             throw new Error("ADAPTIVE_ANSWER_RECORD_NOT_FOUND");
         }
+        checkQuizModificationAllowed(adaptiveAnswer);
         const questionAnswer = adaptiveAnswer.questionsAnswers.find(qa => qa.questionId === questionId);
         if (!questionAnswer) {
             throw new Error("ADAPTIVE_ANSWER_QUESTION_RECORD_NOT_FOUND");
@@ -422,6 +434,7 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
     if (!answerRecord) {
         throw new Error("ANSWER_RECORD_NOT_FOUND");
     }
+    checkQuizModificationAllowed(answerRecord);
     let questionAnswer = answerRecord.questionsAnswers.find(
         qa => qa.questionId === questionId
     );
@@ -506,6 +519,7 @@ export async function skipQuestion(userId: string, questionId: number, instanceI
     if (!answerRecord) {
         throw new Error("ANSWER_RECORD_NOT_FOUND");
     }
+    checkQuizModificationAllowed(answerRecord);
     const qa = answerRecord.questionsAnswers.find(
         q => q.questionId === questionId
     );

@@ -39,6 +39,8 @@ export interface StudentTest {
     status: "OPEN" | "IN_PROGRESS" | "FINISHED";
     validFrom: string;
     validTo: string;
+    feedbackSurveyUrl?: string | null;
+    canModify: boolean;
 }
 
 export const registerStudent = async (data: RegisterStudentRequest) => {

@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {useParams, useSearchParams} from "react-router-dom";
+import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {v4 as uuidv4} from "uuid";
 import {
     type AnswerDTO,
@@ -42,6 +42,7 @@ export default function QuizPage() {
     const freeParam = searchParams.get("freeParam");
     const [userId, setUserId] = useState<string | null>(null);
     const [internalUserId, setInternalUserId] = useState<string | null>(null);
+    const [isInternalUser, setIsInternalUser] = useState(false);
     const [loading, setLoading] = useState(true);
     const [quiz, setQuiz] = useState<QuizType | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,8 @@ export default function QuizPage() {
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'error' | 'success' | 'info' | 'warning' }>({open: false, message: '', severity: 'info',});
     const [questionIds, setQuestionIds] = useState<number[]>([]);
     const [currentIndex, setCurrentIndex] = useState<number>(0);
-    const questionStartRef = React.useRef<number>(Date.now())
+    const questionStartRef = React.useRef<number>(Date.now());
+    const navigate = useNavigate();
     const handleGeoGebraChange = (answer: GeoGebraAnswer) => {
         setGeoGebraAnswers(prev => {
             const idx = prev.findIndex(a => a.id === answer.id);
@@ -110,9 +112,10 @@ export default function QuizPage() {
             if (studentId) {
                 setUserId(studentId);
                 setInternalUserId(studentId);
+                setIsInternalUser(true);
                 return;
             }
-
+            setIsInternalUser(false);
             const key = "quizUserId";
             const expiryKey = "quizUserIdExpiry";
 
@@ -418,6 +421,12 @@ export default function QuizPage() {
                                 <Button color="secondary" onClick={() => {setQuizFinished(false)}}>
                                 Zurück zu den Aufgaben
                             </Button>)}
+                            <br/>
+                            {isInternalUser && (
+                                <Button variant="contained" onClick={() => navigate("/student/tests")}>
+                                    Zurück zum Dashboard
+                                </Button>
+                            )}
                         </Box>
                     ) : (quiz?.question && (<Preview content={quiz.question.contentJson} editorRef={editorRef} onGeoGebraChange={handleGeoGebraChange}/>))}
                 </Box>
