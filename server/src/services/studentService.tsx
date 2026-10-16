@@ -71,10 +71,7 @@ export const registerStudentService = async ({email, password, birthday, registr
     });
 };
 
-export const loginStudentService = async (
-    email: string
-) => {
-
+export const loginStudentService = async (email: string) => {
     return prisma.student.findFirst({
         where: {
             email,

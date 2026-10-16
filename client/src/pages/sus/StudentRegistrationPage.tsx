@@ -29,7 +29,7 @@ const StudentRegistrationPage = () => {
     const [birthday, setBirthday] = useState("");
     const [form, setForm] = useState({email: "", password: "", birthday: "",});
     const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
-    const isValidEmail = (email: string) => {const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;return emailRegex.test(email.trim());};
+    const isValidUsername = (username: string) => {const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;return usernameRegex.test(username.trim());};
     const { registrationToken } = useParams();
     const navigate = useNavigate();
     const [under14, setUnder14] = useState(false);
@@ -76,12 +76,12 @@ const StudentRegistrationPage = () => {
 
     const handleRegister = async () => {
         if (!form.email.trim()) {
-            setSnackbar({open: true, message: "Bitte gib eine E-Mail-Adresse ein.", severity: "error",});
+            setSnackbar({open: true, message: "Bitte gib einen Benutzernamen ein.", severity: "error",});
             return;
         }
 
-        if (!isValidEmail(form.email)) {
-            setSnackbar({open: true, message: "Bitte gib eine gültige E-Mail-Adresse ein.", severity: "error",});
+        if (!isValidUsername(form.email)) {
+            setSnackbar({open: true, message: "Bitte gib eine gültigen Benutzernamen ein.", severity: "error",});
             return;
         }
         if (!privacyAccepted || !dataProcessingAccepted) {
@@ -132,14 +132,14 @@ const StudentRegistrationPage = () => {
                                 <Typography variant="h4" gutterBottom>Deine Daten</Typography>
                                 <Box display="flex" flexDirection="column" gap={2}>
                                     <TextField
-                                        label="E-Mail"
+                                        label="Benutzername"
                                         name="email"
                                         type="email"
                                         value={form.email}
                                         onChange={handleChange}
                                         required
-                                        error={form.email.length > 0 && !isValidEmail(form.email)}
-                                        helperText={form.email.length > 0 && !isValidEmail(form.email) ? "Bitte gib eine gültige E-Mail-Adresse ein." : ""}
+                                        error={form.email.length > 0 && !isValidUsername(form.email)}
+                                        helperText={form.email.length > 0 && !isValidUsername(form.email) ? "Bitte gib einen gültigen Benutzernamen ein (3–30 Zeichen, nur Buchstaben, Zahlen, _ und -; keine Leerzeichen)." : ""}
                                     />
                                     <TextField
                                         label="Passwort"

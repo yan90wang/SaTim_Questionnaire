@@ -61,10 +61,7 @@ export const registerStudent = async (data: RegisterStudentRequest) => {
 };
 
 
-export const loginStudent = async (
-    data: StudentLoginRequest
-): Promise<StudentLoginResponse> => {
-
+export const loginStudent = async (data: StudentLoginRequest): Promise<StudentLoginResponse> => {
     const response = await fetch(
         `${API_URL}/api/student/login`,
         {
@@ -77,9 +74,7 @@ export const loginStudent = async (
     );
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(
-            error.message || "Login failed"
-        );
+        throw new Error(error.message || "Login failed");
     }
     const result = await response.json();
     saveStudentSession(result);

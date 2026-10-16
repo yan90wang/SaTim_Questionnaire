@@ -77,38 +77,23 @@ export const registerStudent = async (
             return res.status(400).json({message: "Bitte bestätige die Datenschutzbestimmungen.",});
         }
     }
-
     return res.status(500).json({
         message: "Registrierung fehlgeschlagen.",
     });
 }
 };
 
-export const loginStudent = async (
-    req: Request<{}, {}, StudentLoginRequestBody>,
-    res: Response
-) => {
-
+export const loginStudent = async (req: Request<{}, {}, StudentLoginRequestBody>, res: Response) => {
     const { email, password } = req.body;
     try {
         const student = await loginStudentService(email);
         if (!student) {
-            return res.status(400).json({
-                message: "Invalid email or password",
-            });
+            return res.status(400).json({message: "Invalid email or password",});
         }
-
-        const valid = await bcrypt.compare(
-            password,
-            student.password
-        );
-
+        const valid = await bcrypt.compare(password, student.password);
         if (!valid) {
-            return res.status(400).json({
-                message: "Invalid email or password",
-            });
+            return res.status(400).json({message: "Invalid email or password",});
         }
-
         const token = jwt.sign(
             {
                 studentId: student.id,

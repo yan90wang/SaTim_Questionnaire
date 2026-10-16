@@ -140,7 +140,7 @@ const StudentProfilePage = () => {
                     />
 
                     <CardContent sx={{display: "flex", flexDirection: "column", gap: 2,}}>
-                        <TextField label="E-Mail" value={student.email ?? "Keine E-Mail hinterlegt"} fullWidth disabled/>
+                        <TextField label="Benutzername" value={student.email ?? "Kein Benutzername hinterlegt"} fullWidth disabled/>
 
                         <TextField label="Geburtsdatum" value={new Date(student.birthday).toLocaleDateString()} fullWidth disabled/>
 

@@ -17,31 +17,19 @@ interface StudentLoginFormProps {
     onSuccess?: () => void;
 }
 
-export const StudentLoginForm = ({
-                                     onSuccess,
-                                 }: StudentLoginFormProps) => {
+export const StudentLoginForm = ({onSuccess,}: StudentLoginFormProps) => {
     const navigate = useNavigate();
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
 
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error",
-    });
-
-    const handleSubmit = async (
-        e: React.FormEvent
-    ) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-
         try {
             await loginStudent({email, password});
             setSnackbar({open: true, message: "Login erfolgreich.", severity: "success",});
-
             onSuccess?.();
             navigate("/student/tests");
         } catch (err: any) {
@@ -67,18 +55,11 @@ export const StudentLoginForm = ({
                 />
 
                 <CardContent>
-                    <Box
-                        component="form"
-                        onSubmit={handleSubmit}
-                        sx={{display: "flex", flexDirection: "column", gap: 2,}}
-                    >
+                    <Box component="form" onSubmit={handleSubmit} sx={{display: "flex", flexDirection: "column", gap: 2,}}>
                         <TextField
-                            label="Email"
-                            type="email"
+                            label="Benutzername"
                             value={email}
-                            onChange={(e) =>
-                                setEmail(e.target.value)
-                            }
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                             fullWidth
                         />
