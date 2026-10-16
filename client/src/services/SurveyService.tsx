@@ -28,6 +28,7 @@ export interface SurveyResponse {
     hasActiveInstance?: boolean;
     isTwoTier: boolean;
     teacherAssigned: boolean;
+    missingKsQuestionIds?: number[];
 }
 
 export interface QuestionExport {

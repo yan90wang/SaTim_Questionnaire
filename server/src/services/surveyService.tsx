@@ -112,16 +112,13 @@ export const createSurvey = async (data: CreateSurveyInput, userId: number): Pro
 /**
  * Get all surveys
  */
-export const getAllSurveys = async (userId: number): Promise<survey[]> => {
+export const getAllSurveys = async (userId: number): Promise<(survey & { missingKsQuestionIds: number[] })[]> => {
     const user = await prisma.users.findUnique({
         where: { id: userId },
         select: { team_id: true },
     });
-
-    if (!user || user.team_id === null) {
-        throw new Error("USER_OR_TEAM_NOT_FOUND");
-    }
-    return prisma.survey.findMany({
+    if (!user || user.team_id === null) {throw new Error("USER_OR_TEAM_NOT_FOUND");}
+    const surveys = await prisma.survey.findMany({
         where: {
             team_id: user.team_id,
         },
@@ -132,6 +129,22 @@ export const getAllSurveys = async (userId: number): Promise<survey[]> => {
         },
         orderBy: {createdAt: "desc"},
     });
+    const allKsQuestionIds = [...new Set(surveys.filter(s => s.mode === "ADAPTIV").flatMap(s => s.ksQuestionIds))];
+    const existingQuestions = await prisma.question.findMany({
+        where: {
+            id: { in: allKsQuestionIds }
+        },
+        select: {
+            id: true
+        }
+    });
+    const existingQuestionIds = new Set(
+        existingQuestions.map(q => q.id)
+    );
+    return surveys.map(s => ({
+        ...s,
+        missingKsQuestionIds: s.mode === "ADAPTIV" ? [...new Set(s.ksQuestionIds)].filter(id => !existingQuestionIds.has(id)) : []
+    }));
 };
 
 /**

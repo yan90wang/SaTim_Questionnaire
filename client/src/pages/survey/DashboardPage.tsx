@@ -23,7 +23,7 @@ import {
     TextField, Tooltip,
     Typography,
 } from "@mui/material";
-import {Add, BarChart, CalendarToday} from "@mui/icons-material";
+import {Add, BarChart, CalendarToday, WarningAmber} from "@mui/icons-material";
 import {useNavigate} from "react-router-dom";
 import {createSurvey, getSurveys} from "../../services/SurveyService.tsx";
 import type {surveyStatus} from "./SurveyUpdatePage.tsx";
@@ -46,6 +46,7 @@ interface Survey {
     hasActiveInstance?: boolean;
     isTwoTier: boolean;
     teacherAssigned: boolean;
+    missingKsQuestionIds?: number[];
 }
 
 const DashboardPage = () => {
@@ -170,7 +171,8 @@ const DashboardPage = () => {
                             instances: s.instances,
                             hasActiveInstance: s.hasActiveInstance,
                             isTwoTier: s.isTwoTier,
-                            teacherAssigned: s.teacherAssigned
+                            teacherAssigned: s.teacherAssigned,
+                            missingKsQuestionIds: s.missingKsQuestionIds
                         };
                     })
                 );
@@ -319,7 +321,23 @@ const DashboardPage = () => {
                             <Grid item key={survey.id} sx={{ width: 350, flexGrow: 0 }}>
                                 <Card>
                                     <CardHeader
-                                        title={survey.title}
+                                        title={
+                                            <Box display="flex" alignItems="center" gap={1}>
+                                                <Typography variant="h6">{survey.title}</Typography>
+                                                {(survey.missingKsQuestionIds?.length ?? 0) > 0 && (
+                                                    <Tooltip arrow title={<Box>
+                                                                <Typography variant="subtitle2" fontWeight="bold">Achtung! Fehlende Aufgaben im Knowledge Space. Dies führt zu Fehlern bei Testabläufen! Korrigieren Sie die fehlenden Aufgaben.</Typography>
+                                                                <Typography variant="body2">Folgende Aufgaben-IDs wurden nicht in der Datenbank gefunden:</Typography>
+                                                                <Typography variant="body2" fontWeight="bold" sx={{ mt: 0.5 }}>
+                                                                    {survey.missingKsQuestionIds?.join(", ")}
+                                                                </Typography>
+                                                            </Box>
+                                                        }>
+                                                        <WarningAmber color="warning" fontSize="small" sx={{cursor: "help", flexShrink: 0}}/>
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
+                                        }
                                         subheader={<Box display="flex" gap={1}>
                                             <Tooltip title={getStatusInfo(survey.status)} arrow>
                                                 <Chip label={survey.status} color={getStatusColor(survey.status)} size="small" sx={{ cursor: "help" }}/>
