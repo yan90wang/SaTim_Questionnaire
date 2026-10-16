@@ -2,6 +2,7 @@ import prisma from "../config/prismaClient.js";
 import bcrypt from "bcrypt";
 import {getUserTeam} from "./teamServices.js";
 import {SwissCanton} from "@prisma/client";
+import {randomBytes} from "node:crypto";
 
 const saltRounds = 10;
 
@@ -177,19 +178,23 @@ const generatePassword = (length = 10): string => {
 
 
 const generateStudentEmail = async (): Promise<string> => {
-    let email: string;
-    do {
-        const randomId = Math.random().toString(36).substring(2, 8);
-        email = `student.${randomId}@satim.ch`;
-        const existingStudent = await prisma.student.findFirst({
+    while (true) {
+        const randomId = randomBytes(6).toString("hex");
+        const username = `student_${randomId}`;
+
+        const existingStudent = await prisma.student.findUnique({
             where: {
-                email,
+                email: username,
+            },
+            select: {
+                id: true,
             },
         });
 
-        if (!existingStudent) {return email;}
-    } while (true);
-};
+        if (!existingStudent) {
+            return username;
+        }
+};}
 
 interface UpdateTeacherInput {
     first_name: string;

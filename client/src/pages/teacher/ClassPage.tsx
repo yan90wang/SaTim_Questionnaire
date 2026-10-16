@@ -301,7 +301,7 @@ const ClassPage = () => {
 
                                             {student.email && (
                                                 <Typography color="text.secondary">
-                                                    {student.email}
+                                                    Benutzername:{" "}{student.email}
                                                 </Typography>
                                             )}
 
@@ -367,7 +367,7 @@ const ClassPage = () => {
                             </b></Typography>
 
                             <Typography>
-                                E-Mail: {generatedCredentials.email}
+                                Benutzername: {generatedCredentials.email}
                             </Typography>
 
                             <Typography>
