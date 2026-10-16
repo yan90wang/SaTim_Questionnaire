@@ -319,7 +319,13 @@ const DashboardPage = () => {
                     })
                         .map((survey) => (                            //@ts-ignore
                             <Grid item key={survey.id} sx={{ width: 350, flexGrow: 0 }}>
-                                <Card>
+                                <Card sx={{
+                                        backgroundColor: (survey.missingKsQuestionIds?.length ?? 0) > 0 ? "rgba(255, 152, 0, 0.08)" : "background.paper",
+                                        border: (survey.missingKsQuestionIds?.length ?? 0) > 0 ? "1px solid" : "1px solid transparent",
+                                        borderColor: (survey.missingKsQuestionIds?.length ?? 0) > 0 ? "warning.main" : "transparent",
+                                        borderRadius: 2,
+                                        transition: "all 0.2s ease-in-out",
+                                        "&:hover": {boxShadow: 3,},}}>
                                     <CardHeader
                                         title={
                                             <Box display="flex" alignItems="center" gap={1}>
@@ -333,7 +339,7 @@ const DashboardPage = () => {
                                                                 </Typography>
                                                             </Box>
                                                         }>
-                                                        <WarningAmber color="warning" fontSize="small" sx={{cursor: "help", flexShrink: 0}}/>
+                                                        <WarningAmber color="error" fontSize="small" sx={{cursor: "help", flexShrink: 0}}/>
                                                     </Tooltip>
                                                 )}
                                             </Box>

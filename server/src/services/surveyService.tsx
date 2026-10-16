@@ -1152,7 +1152,21 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         }
         return questionId;
     });
-
+    const existingQuestions = await prisma.question.findMany({
+        where: {
+            id: {
+                in: numericItemColumns
+            }
+        },
+        select: {
+            id: true
+        }
+    });
+    const existingQuestionIds = new Set(existingQuestions.map(q => q.id));
+    const missingQuestionIds = [...new Set(numericItemColumns)].filter(id => !existingQuestionIds.has(id));
+    if (missingQuestionIds.length > 0) {
+        throw new Error(`Folgende Aufgaben-IDs aus dem Knowledge Space wurden ` + `nicht in der Datenbank gefunden: ${missingQuestionIds.join(", ")}.`);
+    }
     const ks = ksRows.slice(1)
         .map((row, rowIndex) => {
             return usedColumnIndexes.map(columnIndex => {
