@@ -216,18 +216,15 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                         }
                         const line1Points = [data.point1Line1, data.point2Line1];
                         const line2Points = [data.point1Line2, data.point2Line2];
+                        const axisAligned = linesAreAxisAligned(line1Points[0], line1Points[1], line2Points[0], line2Points[1]);
+                        if (!axisAligned) {break;}
                         const perpendicular = linesArePerpendicular(line1Points[0], line1Points[1], line2Points[0], line2Points[1]);
-                        if (!perpendicular) {
-                            break;
-                        }
+                        if (!perpendicular) {break;}
                         const sharedPoint = findSharedPoint(line1Points, line2Points);
-
                         if (!sharedPoint) {break;}
                         const point1 = getOuterPoint(line1Points, sharedPoint);
                         const point2 = getOuterPoint(line2Points, sharedPoint);
-
                         if (!point1 || !point2) {break;}
-
                         const slope = calculateSlope(point1, point2);
 
                         if (checkNumericConditions(slope, correctAnswer.value)) {
@@ -247,14 +244,11 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
 
                         const lines = [[data.point1Line1, data.point2Line1], [data.point1Line2, data.point2Line2], [data.point1Line3, data.point2Line3],];
                         let slope: number | null = null;
-                        if (linesArePerpendicular(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1])) {
+                        if (linesArePerpendicular(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1]) && linesAreAxisAligned(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1])) {
                             slope = calculateSlope(lines[2]![0], lines[2]![1]);
-                        } else if (
-                            linesArePerpendicular(lines[0]![0], lines[0]![1], lines[2]![0], lines[2]![1])) {
+                        } else if (linesArePerpendicular(lines[0]![0], lines[0]![1], lines[2]![0], lines[2]![1]) && linesAreAxisAligned(lines[0]![0], lines[0]![1], lines[2]![0], lines[2]![1])) {
                             slope = calculateSlope(lines[1]![0], lines[1]![1]);
-                        } else if (
-                            linesArePerpendicular(lines[1]![0], lines[1]![1], lines[2]![0], lines[2]![1])
-                        ) {
+                        } else if (linesArePerpendicular(lines[1]![0], lines[1]![1], lines[2]![0], lines[2]![1]) && linesAreAxisAligned(lines[1]![0], lines[1]![1], lines[2]![0], lines[2]![1])) {
                             slope = calculateSlope(lines[0]![0], lines[0]![1]);
                         }
                         if (slope === null) {break;}
@@ -321,6 +315,15 @@ function checkNumericConditions(value: number, conditions: NumericCondition[]): 
     }
     return result;
 }
+
+const linesAreAxisAligned = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }, p4: { x: number; y: number }): boolean => {
+    const epsilon = 1e-6;
+    const line1Horizontal = Math.abs(p1.y - p2.y) < epsilon;
+    const line1Vertical = Math.abs(p1.x - p2.x) < epsilon;
+    const line2Horizontal = Math.abs(p3.y - p4.y) < epsilon;
+    const line2Vertical = Math.abs(p3.x - p4.x) < epsilon;
+    return ((line1Horizontal && line2Vertical) || (line1Vertical && line2Horizontal));
+};
 
 function checkGeoGebraPoints(correct: Record<string, any>, user: { name: string; x: number; y: number }[]): boolean {
     const userUnused = [...user];
