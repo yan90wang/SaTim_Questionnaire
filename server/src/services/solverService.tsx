@@ -241,8 +241,8 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                         if (!data || !data.point1Line1 || !data.point2Line1 || !data.point1Line2 || !data.point2Line2 || !data.point1Line3 || !data.point2Line3) {
                             break;
                         }
-
                         const lines = [[data.point1Line1, data.point2Line1], [data.point1Line2, data.point2Line2], [data.point1Line3, data.point2Line3],];
+                        if (!linesFormTriangle(lines)) {break;}
                         let slope: number | null = null;
                         if (linesArePerpendicular(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1]) && linesAreAxisAligned(lines[0]![0], lines[0]![1], lines[1]![0], lines[1]![1])) {
                             slope = calculateSlope(lines[2]![0], lines[2]![1]);
@@ -378,6 +378,15 @@ function checkGeoGebraLines(correct: Record<string, any>, user: { m: number; c: 
     return true;
 }
 
+function linesFormTriangle(lines: any[][]): boolean {
+    const p12 = findSharedPoint(lines[0]!, lines[1]!);
+    const p13 = findSharedPoint(lines[0]!, lines[2]!);
+    const p23 = findSharedPoint(lines[1]!, lines[2]!);
+    if (!p12 || !p13 || !p23) {return false;}
+    const samePoint = (a: any, b: any) => a.x === b.x && a.y === b.y;
+    return (!samePoint(p12, p13) && !samePoint(p12, p23) && !samePoint(p13, p23));
+}
+
 function getLineEquationCoeffs(latex: string): { m: number; c: number } | null {
     try {
         let expr = ce.parse(latex, { syntax: "latex" });
@@ -481,13 +490,15 @@ function getMCIndeces(doc: any, targetIds: string[]): number[] {
 }
 
 function findSharedPoint(points1: any[], points2: any[]) {
+    const epsilon = 1e-6;
     for (const p1 of points1) {
         for (const p2 of points2) {
-            if (p1.x === p2.x && p1.y === p2.y) {
+            if (Math.abs(p1.x - p2.x) < epsilon && Math.abs(p1.y - p2.y) < epsilon) {
                 return p1;
             }
         }
     }
+
     return null;
 }
 
