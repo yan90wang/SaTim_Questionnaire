@@ -17,16 +17,10 @@ import { getAssignedTests, type StudentTest } from "../../services/StudentServic
 
 const StudentDashboardPage = () => {
     const navigate = useNavigate();
-
+    const userId = localStorage.getItem("studentId");
     const [loading, setLoading] = useState(true);
     const [tests, setTests] = useState<StudentTest[]>([]);
-
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error",
-    });
-
+    const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
     useEffect(() => {
         const load = async () => {
             try {
@@ -35,11 +29,7 @@ const StudentDashboardPage = () => {
                 setTests(data);
             } catch (err) {
                 console.error(err);
-                setSnackbar({
-                    open: true,
-                    message: "Tests konnten nicht geladen werden.",
-                    severity: "error",
-                });
+                setSnackbar({open: true, message: "Tests konnten nicht geladen werden.", severity: "error",});
             } finally {
                 setLoading(false);
             }
@@ -47,6 +37,22 @@ const StudentDashboardPage = () => {
 
         load();
     }, []);
+
+    const handleFeedbackClick = (feedbackUrl: string) => {
+        if (!userId) return;
+        const finalUrl = feedbackUrl.replaceAll("${userId}", encodeURIComponent(userId));
+        try {
+            const parsedUrl = new URL(finalUrl);
+            if (!["https:", "http:"].includes(parsedUrl.protocol)) {throw new Error("Invalid URL protocol");}
+            window.open(parsedUrl.href, "_blank", "noopener,noreferrer");
+        } catch {
+            setSnackbar({
+                open: true,
+                message: "Die Feedback-URL ist ungültig.",
+                severity: "error",
+            });
+        }
+    };
 
     if (loading) {
         return (
@@ -98,11 +104,15 @@ const StudentDashboardPage = () => {
                                             </Box>
 
                                             <Box display="flex" flexDirection="column" gap={1} alignItems="flex-end">
-
-                                                <Button variant="contained"
-                                                    onClick={() => navigate(`/quiz/${test.instanceId}`)}>
+                                             <Button variant="contained" sx={{ width: 200 }} onClick={() => navigate(`/quiz/${test.instanceId}`)}>
                                                     {"Test bearbeiten"}
-                                                </Button>
+                                                    </Button>
+                                                {test.status === "FINISHED" && !!test.feedbackSurveyUrl?.trim() && (
+                                                    <Button variant="contained" sx={{ width: 200}}
+                                                            onClick={() => handleFeedbackClick(test.feedbackSurveyUrl!)}>
+                                                        Feedback geben
+                                                    </Button>
+                                                )}
                                             </Box>
                                         </CardContent>
                                     </Card>

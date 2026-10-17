@@ -423,7 +423,7 @@ export default function QuizPage() {
                             </Button>)}
                             <br/>
                             {isInternalUser && (
-                                <Button variant="contained" onClick={() => navigate("/student/tests")}>
+                                <Button variant="outlined" onClick={() => navigate("/student/tests")}>
                                     Zurück zum Dashboard
                                 </Button>
                             )}
