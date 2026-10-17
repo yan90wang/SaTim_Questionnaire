@@ -873,6 +873,7 @@ function formatSwissDate(isoString: string | Date | null | undefined): string {
 
     const date = typeof isoString === "string" ? new Date(isoString) : isoString;
     return date.toLocaleString("de-CH", {
+        timeZone: "Europe/Zurich",
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -1310,7 +1311,6 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         }
         throw new Error(`Knowledge Space und Beta/Eta-Datei passen nicht zusammen. ` + details.join(" "));
     }
-
     const timestamp = Date.now();
     const safeKsName = knowledgeSpaceFile.originalname
         .replace(/\s+/g, "_")
@@ -1324,15 +1324,9 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         .replace(/\s+/g, "_")
         .replace(/[^a-zA-Z0-9._-]/g, "");
 
-    const ksFilePath =
-        `surveys/${surveyId}/knowledge-space/${timestamp}_${safeKsName}`;
-
-    const probabilityFilePath =
-        `surveys/${surveyId}/probability/${timestamp}_${safeProbabilityName}`;
-
-    const betaEtaFilePath =
-        `surveys/${surveyId}/beta-eta/${timestamp}_${safeBetaEtaName}`;
-
+    const ksFilePath = `surveys/${surveyId}/knowledge-space/${timestamp}_${safeKsName}`;
+    const probabilityFilePath = `surveys/${surveyId}/probability/${timestamp}_${safeProbabilityName}`;
+    const betaEtaFilePath = `surveys/${surveyId}/beta-eta/${timestamp}_${safeBetaEtaName}`;
     const { error: ksUploadError } =
         await supabase.storage
             .from("knowledge-spaces")
@@ -1340,18 +1334,13 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
                 ksFilePath,
                 knowledgeSpaceFile.buffer,
                 {
-                    contentType:
-                        knowledgeSpaceFile.mimetype ||
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    contentType: knowledgeSpaceFile.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     upsert: false,
                 }
             );
 
     if (ksUploadError) {
-        throw new Error(
-            "Knowledge Space konnte nicht in Supabase gespeichert werden: " +
-            ksUploadError.message
-        );
+        throw new Error("Knowledge Space konnte nicht in Supabase gespeichert werden: " + ksUploadError.message);
     }
 
     const { error: probabilityUploadError } =
@@ -1361,20 +1350,14 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
                 probabilityFilePath,
                 probabilityFile.buffer,
                 {
-                    contentType:
-                        probabilityFile.mimetype ||
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    contentType: probabilityFile.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     upsert: false,
                 }
             );
 
     if (probabilityUploadError) {
-        throw new Error(
-            "Probability Excel konnte nicht in Supabase gespeichert werden: " +
-            probabilityUploadError.message
-        );
+        throw new Error("Probability Excel konnte nicht in Supabase gespeichert werden: " + probabilityUploadError.message);
     }
-
     const { error: betaEtaUploadError } =
         await supabase.storage
             .from("beta-eta")
@@ -1383,17 +1366,13 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
                 betaEtaFile.buffer,
                 {
                     contentType:
-                        betaEtaFile.mimetype ||
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        betaEtaFile.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     upsert: false,
                 }
             );
 
     if (betaEtaUploadError) {
-        throw new Error(
-            "Beta/Eta Excel konnte nicht in Supabase gespeichert werden: " +
-            betaEtaUploadError.message
-        );
+        throw new Error("Beta/Eta Excel konnte nicht in Supabase gespeichert werden: " + betaEtaUploadError.message);
     }
 
     const {data: ksPublicUrlData,} = supabase.storage.from("knowledge-spaces").getPublicUrl(ksFilePath);
@@ -1402,8 +1381,6 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     const knowledgeSpaceFileUrl = ksPublicUrlData.publicUrl;
     const probabilityDistributionFileUrl = probabilityPublicUrlData.publicUrl;
     const betaEtaFileUrl = betaEtaPublicUrlData.publicUrl;
-
-
     await prisma.survey.update({
         where: {
             id: surveyId,
@@ -1420,12 +1397,10 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         knowledgeSpaceFileUrl,
         probabilityDistributionFileUrl,
         betaEtaFileUrl,
-
         numberOfStates: ks.length,
         numberOfItems: numericItemColumns.length,
         numberOfProbabilityEntries: probabilities.length,
         numberOfBetaEtaEntries: betaEta.length,
-
         itemColumns: numericItemColumns,
     };
 };
