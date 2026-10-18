@@ -53,14 +53,27 @@ export async function getQuiz(instanceId: string, userId: string, questionId?: n
 }
 
 const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
-    if (!survey.knowledgeSpaceBinary || !survey.ksNumberOfStates || !survey.ksNumberOfItems) {
-        throw new Error("BINARY_KNOWLEDGE_SPACE_NOT_FOUND");
-    }
     const binaryKS = survey.knowledgeSpaceBinary;
-    const numberOfStates = survey.ksNumberOfStates;
-    const numberOfItems = survey.ksNumberOfItems;
-    const itemColumns = survey.ksQuestionIds;
-    if (itemColumns.length !== numberOfItems) {
+    const useBinaryKS = binaryKS !== null && survey.ksNumberOfStates !== null && survey.ksNumberOfItems !== null;
+    let ks: number[][] | null = null;
+    let numberOfStates: number;
+    let numberOfItems: number;
+    let itemColumns: number[];
+    if (useBinaryKS) {
+        numberOfStates = survey.ksNumberOfStates!;
+        numberOfItems = survey.ksNumberOfItems!;
+        itemColumns = survey.ksQuestionIds;
+    } else {
+        if (!survey.knowledgeSpaceFileUrl) {
+            throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
+        }
+        const knowledgeSpace = await fetchKnowledgeSpace(survey.knowledgeSpaceFileUrl);
+        ks = knowledgeSpace.ks;
+        itemColumns = knowledgeSpace.itemColumns;
+        numberOfStates = ks.length;
+        numberOfItems = itemColumns.length;
+    }
+    if (numberOfStates === 0 || numberOfItems === 0 || itemColumns.length !== numberOfItems) {
         throw new Error("KNOWLEDGE_SPACE_ITEM_COLUMNS_MISMATCH");
     }
     let adaptiveAnswer = await prisma.adaptiveAnswer.findUnique({
@@ -134,7 +147,13 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                     throw new Error(`ANSWER_EVALUATION_FAILED: ${previousAnswer.questionId}`);
                 }
                 const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
-                updatedProbs = bayesianUpdateBinary(binaryKS, updatedProbs, numberOfStates, numberOfItems, beta, eta, itemIndex, result);
+                if (useBinaryKS && binaryKS) {
+                    updatedProbs = bayesianUpdateBinary(binaryKS, updatedProbs, numberOfStates, numberOfItems, beta, eta, itemIndex, result);
+                } else if (ks) {
+                    updatedProbs = bayesianUpdate(updatedProbs, ks, beta, eta, itemIndex, result);
+                } else {
+                    throw new Error("KNOWLEDGE_SPACE_NOT_FOUND_LOOP");
+                }
                 reusedQuestionIds.push(previousAnswer.questionId);
             }
         }
@@ -149,6 +168,7 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 questionIds: [],
                 itemColumns,
                 reusedQuestionIds,
+                ...(ks !== null ? { knowledgeSpace: ks } : {}),
             },
             include: {
                 questionsAnswers: {
@@ -212,8 +232,14 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
 
         return buildResponse(null);
     }
-
-    const distances = halfsplitBinary(binaryKS, probs, numberOfStates, numberOfItems);
+    let distances: number[];
+    if (useBinaryKS && binaryKS) {
+        distances = halfsplitBinary(binaryKS, probs, numberOfStates, numberOfItems);
+    } else if (ks) {
+        distances = halfsplitQuestion(probs, ks);
+    } else {
+        throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
+    }
     const availableCandidates = distances
         .map((distance, itemIndex) => ({
             itemIndex,
