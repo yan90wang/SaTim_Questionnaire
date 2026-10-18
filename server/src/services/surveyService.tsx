@@ -6,6 +6,7 @@ import os from "os";
 import path from "path";
 import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
 import {supabase} from "../supabaseClient.js";
+import {Readable} from "node:stream";
 
 /**
  * Interface for creating a new survey
@@ -1122,68 +1123,23 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         },
     });
     if (!survey) {throw new Error("Erhebung wurde nicht gefunden.");}
-    const ksWorkbook = XLSX.read(knowledgeSpaceFile.buffer, { type: "buffer" });
-    const ksSheetName = ksWorkbook.SheetNames[0];
-    if (!ksSheetName) {throw new Error("Knowledge Space Excel-Datei enthält kein Tabellenblatt.");}
-    const ksSheet = ksWorkbook.Sheets[ksSheetName];
-    if (!ksSheet) {throw new Error(`Das Tabellenblatt "${ksSheetName}" konnte nicht gefunden werden.`);}
-    const ksRows = XLSX.utils.sheet_to_json<any[]>(ksSheet, {header: 1, defval: null, blankrows: false,});
-    if (ksRows.length === 0) {
-        throw new Error("Knowledge Space Excel-Datei ist leer.");
-    }
-    const headerRow = ksRows[0];
-    if (!Array.isArray(headerRow) || headerRow.length === 0) {
-        throw new Error("Knowledge Space Excel-Datei enthält keine Kopfzeile.");
-    }
-    const usedColumnIndexes: number[] = [];
-    for (let col = 0; col < headerRow.length; col++) {
-        const header = headerRow[col];
-        if (header !== null && header !== undefined && String(header).trim() !== "") {
-            usedColumnIndexes.push(col);
-        }
-    }
-    if (usedColumnIndexes.length < 1) {
-        throw new Error("Knowledge Space muss mindestens eine Aufgaben-Spalte enthalten.");
-    }
-    const itemColumns = usedColumnIndexes.map(index => String(headerRow[index]).trim());
-    const numericItemColumns = itemColumns.map(column => {
-        const questionId = Number(column);
-        if (!Number.isInteger(questionId)) {
-            throw new Error(`Ungültige Aufgaben-ID in Knowledge-Space-Spalte "${column}". ` + `Die Aufgaben-Spalten müssen numerische IDs enthalten.`);
-        }
-        return questionId;
-    });
+
+    const {numericItemColumns, numberOfStates,} = await validateKnowledgeSpaceFile(knowledgeSpaceFile);
     const existingQuestions = await prisma.question.findMany({
         where: {
             id: {
-                in: numericItemColumns
-            }
+                in: numericItemColumns,
+            },
         },
         select: {
-            id: true
-        }
+            id: true,
+        },
     });
+
     const existingQuestionIds = new Set(existingQuestions.map(q => q.id));
     const missingQuestionIds = [...new Set(numericItemColumns)].filter(id => !existingQuestionIds.has(id));
     if (missingQuestionIds.length > 0) {
         throw new Error(`Folgende Aufgaben-IDs aus dem Knowledge Space wurden ` + `nicht in der Datenbank gefunden: ${missingQuestionIds.join(", ")}.`);
-    }
-    const ks = ksRows.slice(1)
-        .map((row, rowIndex) => {
-            return usedColumnIndexes.map(columnIndex => {
-                const value = row[columnIndex];
-                if (value === null || value === undefined || String(value).trim() === "") {
-                    throw new Error(`Fehlender Wert im Knowledge Space in Zeile ${rowIndex + 2}.`);
-                }
-                const numericValue = Number(value);
-                if (numericValue !== 0 && numericValue !== 1) {
-                    throw new Error(`Ungültiger Wert im Knowledge Space in Zeile ${rowIndex + 2}. ` + `Erlaubt sind nur 0 und 1.`);
-                }
-                return numericValue;
-            });
-        });
-    if (ks.length === 0) {
-        throw new Error("Knowledge Space Excel-Datei enthält keine Zustände.");
     }
 
     const probabilityWorkbook = XLSX.read(probabilityFile.buffer, { type: "buffer" });
@@ -1293,8 +1249,8 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
             return {id: numericId, beta: numericBeta, eta: numericEta,};
         }
     );
-    if (ks.length !== probabilities.length) {
-        throw new Error(`Knowledge Space und Probability-Datei passen nicht zusammen. ` + `Knowledge Space enthält ${ks.length} Zustände, ` + `Probability-Datei enthält ${probabilities.length} Einträge.`);
+    if (numberOfStates !== probabilities.length) {
+        throw new Error(`Knowledge Space und Probability-Datei passen nicht zusammen. ` + `Knowledge Space enthält ${numberOfStates} Zustände, ` + `Probability-Datei enthält ${probabilities.length} Einträge.`);
     }
     const ksIdSet = new Set(numericItemColumns);
     const betaEtaIds = betaEta.map(entry => entry.id);
@@ -1397,10 +1353,71 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         knowledgeSpaceFileUrl,
         probabilityDistributionFileUrl,
         betaEtaFileUrl,
-        numberOfStates: ks.length,
+        numberOfStates: numberOfStates,
         numberOfItems: numericItemColumns.length,
         numberOfProbabilityEntries: probabilities.length,
         numberOfBetaEtaEntries: betaEta.length,
         itemColumns: numericItemColumns,
     };
 };
+
+async function validateKnowledgeSpaceFile(file: Express.Multer.File): Promise<{ numericItemColumns: number[]; numberOfStates: number; }> {
+    const stream = Readable.from([file.buffer]);
+    const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(stream, {sharedStrings: "cache", hyperlinks: "ignore", styles: "ignore", worksheets: "emit",});
+    let numericItemColumns: number[] = [];
+    let usedColumnIndexes: number[] = [];
+    let numberOfStates = 0;
+    let foundSheet = false;
+    for await (const worksheet of workbookReader) {
+        if (foundSheet) break;
+        foundSheet = true;
+        for await (const row of worksheet) {
+            if (row.number === 1) {
+                const headers: Array<{ index: number; value: string }> = [];
+                row.eachCell((cell, colNumber) => {
+                    const value = String(cell.value ?? "").trim();
+                    if (value !== "") {
+                        headers.push({index: colNumber, value,});
+                    }
+                });
+
+                if (headers.length === 0) {
+                    throw new Error("Knowledge Space muss mindestens eine Aufgaben-Spalte enthalten.");
+                }
+
+                usedColumnIndexes = headers.map(h => h.index);
+                numericItemColumns = headers.map(h => {
+                    const id = Number(h.value);
+                    if (!Number.isInteger(id)) {
+                        throw new Error(`Ungültige Aufgaben-ID: ${h.value}`);
+                    }
+                    return id;
+                });
+                continue;
+            }
+            if (!row.hasValues) continue;
+            for (const colNumber of usedColumnIndexes) {
+                const value = row.getCell(colNumber).value;
+                if (value === null || value === undefined || String(value).trim() === "") {
+                    throw new Error(`Fehlender Wert im Knowledge Space in Zeile ${row.number}.`);
+                }
+                const numericValue = Number(value);
+                if (numericValue !== 0 && numericValue !== 1) {
+                    throw new Error(`Ungültiger Wert im Knowledge Space in Zeile ${row.number}. Erlaubt sind nur 0 und 1.`);
+                }
+            }
+            numberOfStates++;
+        }
+    }
+
+    if (!foundSheet) {
+        throw new Error("Knowledge Space Excel-Datei enthält kein Tabellenblatt.");
+    }
+    if (numericItemColumns.length === 0) {
+        throw new Error("Knowledge Space Excel-Datei enthält keine Kopfzeile.");
+    }
+    if (numberOfStates === 0) {
+        throw new Error("Knowledge Space Excel-Datei enthält keine Zustände.");
+    }
+    return {numericItemColumns, numberOfStates,};
+}
