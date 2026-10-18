@@ -158,7 +158,8 @@ export const getAssignedTestsService = async (studentId: number) => {
             } else {
                 status = "OPEN";
             }
-
+            const ONE_HOUR_MS = 60 * 60 * 1000;
+            const canModify = !existingAnswer || now.getTime() - existingAnswer.updatedAt.getTime() < ONE_HOUR_MS;
             return {
                 id: classTest.id,
                 instanceId: instance.id,
@@ -171,7 +172,8 @@ export const getAssignedTestsService = async (studentId: number) => {
                 validFrom: instance.validFrom,
                 validTo: instance.validTo,
                 status,
-                feedbackSurveyUrl: classTest.survey.feedbackSurveyUrl
+                feedbackSurveyUrl: classTest.survey.feedbackSurveyUrl,
+                canModify
             };
         })
     );

@@ -919,15 +919,10 @@ const SurveyUpdatePage = () => {
                         <Button
                             variant="contained"
                             onClick={handleAdaptiveFilesUpload}
-                            disabled={
-                                !knowledgeSpaceFile ||
-                                !probabilityFile ||
-                                !betaEtaFile ||
-                                uploadingAdaptiveFiles
-                            }>
-                            {uploadingAdaptiveFiles
-                                ? "Wird hochgeladen..."
-                                : "Alle Dateien hochladen"}
+                            disabled={!knowledgeSpaceFile || !probabilityFile || !betaEtaFile || uploadingAdaptiveFiles}
+                            startIcon={
+                            uploadingAdaptiveFiles ? (<CircularProgress size={18} color="inherit" />) : undefined}>
+                            {uploadingAdaptiveFiles ? "Wird hochgeladen..." : "Alle Dateien hochladen"}
                         </Button>
                     </DialogActions>
                 </Dialog>

@@ -1210,6 +1210,12 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         throw new Error("Beta/Eta Excel benötigt ID-, Beta- und Eta-Spalten.");
     }
 
+    const expectedColumns = ["itemId", "beta", "eta"];
+    const actualColumns = Object.keys(betaEtaRows[0] ?? {});
+    if (actualColumns.length !== expectedColumns.length || !expectedColumns.every((column, index) => actualColumns[index] === column)) {
+        throw new Error('Die Beta/Eta-Datei muss exakt die Spalten "itemId", "beta" und "eta" in dieser Reihenfolge enthalten.');
+    }
+
     const betaEta = betaEtaRows.map(
         (row, index) => {
             const id = row[betaEtaIdColumn];

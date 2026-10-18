@@ -40,6 +40,7 @@ export interface StudentTest {
     validFrom: string;
     validTo: string;
     feedbackSurveyUrl?: string | null;
+    canModify: boolean;
 }
 
 export const registerStudent = async (data: RegisterStudentRequest) => {
