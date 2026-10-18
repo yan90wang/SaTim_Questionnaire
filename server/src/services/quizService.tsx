@@ -3,7 +3,7 @@ import type {Prisma} from "@prisma/client";
 import type {survey, surveyInstance} from "@prisma/client";
 import * as XLSX from "xlsx";
 import {evaluateAnswersService} from "./solverService.js";
-import {bayesianUpdate, halfsplitQuestion} from "./adaptiveKSTService.js";
+import {bayesianUpdate, bayesianUpdateBinary, halfsplitBinary, halfsplitQuestion} from "./adaptiveKSTService.js";
 
 export interface QuizQuestion {
     id: number;
@@ -52,6 +52,245 @@ export async function getQuiz(instanceId: string, userId: string, questionId?: n
     return getDesignQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam);
 }
 
+const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
+    if (!survey.knowledgeSpaceBinary || !survey.ksNumberOfStates || !survey.ksNumberOfItems) {
+        throw new Error("BINARY_KNOWLEDGE_SPACE_NOT_FOUND");
+    }
+    const binaryKS = survey.knowledgeSpaceBinary;
+    const numberOfStates = survey.ksNumberOfStates;
+    const numberOfItems = survey.ksNumberOfItems;
+    const itemColumns = survey.ksQuestionIds;
+    if (itemColumns.length !== numberOfItems) {
+        throw new Error("KNOWLEDGE_SPACE_ITEM_COLUMNS_MISMATCH");
+    }
+    let adaptiveAnswer = await prisma.adaptiveAnswer.findUnique({
+        where: {
+            surveyId_surveyInstanceId_userId: {
+                surveyId: survey.id,
+                surveyInstanceId: instance.id,
+                userId,
+            },
+        },
+        include: {
+            questionsAnswers: {
+                include: {
+                    feedbackAnswer: true,
+                },
+            },
+        },
+    });
+
+    if (!adaptiveAnswer) {
+        if (!survey.probabilityDistributionFileUrl) {
+            throw new Error("PROBABILITY_FILE_NOT_FOUND");
+        }
+        if (!survey.betaEtaFileUrl) {
+            throw new Error("BETA_ETA_FILE_NOT_FOUND");
+        }
+        const initialProbs = await fetchProbabilityDistribution(survey.probabilityDistributionFileUrl);
+        if (initialProbs.length !== numberOfStates) {
+            throw new Error("PROBABILITY_DISTRIBUTION_SIZE_MISMATCH");
+        }
+
+        const previousAnswers = await prisma.questionAnswer.findMany({
+            where: {
+                adaptiveAnswer: {
+                    userId,
+                    quizFinished: true,
+                },
+                questionId: {
+                    in: itemColumns,
+                },
+                solved: true,
+                skipped: false
+            },
+            orderBy: {
+                id: "asc",
+            },
+            select: {
+                questionId: true,
+                answerJson: true,
+            },
+        });
+        const seenQuestionIds = new Set<number>();
+        const reusableAnswers = previousAnswers.filter(answer => {
+            if (seenQuestionIds.has(answer.questionId)) {
+                return false;
+            }
+            seenQuestionIds.add(answer.questionId);
+            return true;
+        });
+        let updatedProbs = [...initialProbs];
+        const reusedQuestionIds: number[] = [];
+        if (reusableAnswers.length !== 0) {
+            const { beta, eta } = await fetchBetaEta(survey.betaEtaFileUrl, itemColumns);
+            for (const previousAnswer of reusableAnswers) {
+                const itemIndex = itemColumns.indexOf(previousAnswer.questionId);
+                if (itemIndex < 0) {continue;}
+                const answerArray = Array.isArray(previousAnswer.answerJson) ? previousAnswer.answerJson : [];
+                const input = answerArray.map((a: any) => ({key: a.key, value: a.value, m: a.m, c: a.c,}));
+                const evaluation = await evaluateAnswersService(previousAnswer.questionId, input);
+                if (!evaluation) {
+                    throw new Error(`ANSWER_EVALUATION_FAILED: ${previousAnswer.questionId}`);
+                }
+                const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
+                updatedProbs = bayesianUpdateBinary(binaryKS, updatedProbs, numberOfStates, numberOfItems, beta, eta, itemIndex, result);
+                reusedQuestionIds.push(previousAnswer.questionId);
+            }
+        }
+
+        adaptiveAnswer = await prisma.adaptiveAnswer.create({
+            data: {
+                surveyId: survey.id,
+                surveyInstanceId: instance.id,
+                userId,
+                adaptiveProbs: updatedProbs,
+                freeParam: freeParam ?? null,
+                questionIds: [],
+                itemColumns,
+                reusedQuestionIds,
+            },
+            include: {
+                questionsAnswers: {
+                    include: {
+                        feedbackAnswer: true,
+                    },
+                },
+            },
+        });
+    }
+    if (!Array.isArray(adaptiveAnswer.adaptiveProbs)) {
+        throw new Error("ADAPTIVE_PROBABILITIES_NOT_FOUND");
+    }
+    const probs = adaptiveAnswer.adaptiveProbs as number[];
+    if (probs.length !== numberOfStates) {
+        throw new Error("PROBABILITY_DISTRIBUTION_SIZE_MISMATCH");
+    }
+    const questionIds = [...adaptiveAnswer.questionIds];
+    const answeredQuestionIds = adaptiveAnswer.questionsAnswers
+        .filter(qa => qa.solved || qa.skipped)
+        .map(qa => qa.questionId);
+    const skippedQuestions = adaptiveAnswer.questionsAnswers
+        .filter(qa => qa.skipped)
+        .map(qa => qa.questionId);
+    const answeredSet = new Set(answeredQuestionIds);
+
+    const buildResponse = (question: QuizQuestion | null): NextQuestion => ({
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        instanceId: instance.id,
+        question,
+        answerId: adaptiveAnswer.id,
+        bookletId: 99999,
+        totalQuestions: questionIds.length,
+        answeredQuestions: answeredQuestionIds.length,
+        questionIds,
+        answeredQuestionIds,
+        skipped: false,
+        solved: false,
+        previousAnswer: null,
+        skippedQuestions,
+        isTwoTier: survey.isTwoTier,
+        feedback: null,
+        isAdaptive: true,
+        feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
+    });
+
+    if (adaptiveAnswer.quizFinished) {
+        return buildResponse(null);
+    }
+
+    const threshold = survey.adaptiveThreshold;
+    if (threshold !== null && threshold !== undefined && probs.some(prob => prob >= threshold)) {
+        await prisma.adaptiveAnswer.update({
+            where: { id: adaptiveAnswer.id },
+            data: {
+                quizFinished: true,
+                currentQuestionId: null,
+            },
+        });
+
+        return buildResponse(null);
+    }
+
+    const distances = halfsplitBinary(binaryKS, probs, numberOfStates, numberOfItems);
+    const availableCandidates = distances
+        .map((distance, itemIndex) => ({
+            itemIndex,
+            questionId: itemColumns[itemIndex],
+            distance,
+        }))
+        .filter(candidate =>
+            candidate.questionId !== undefined &&
+            !answeredSet.has(candidate.questionId)
+        );
+
+    let nextQuestion: QuizQuestion | null = null;
+
+    if (availableCandidates.length > 0) {
+        const minimumDistance = Math.min(...availableCandidates.map(c => c.distance));
+        const bestCandidates = availableCandidates.filter(c => Math.abs(c.distance - minimumDistance) < 1e-12);
+        const selectedCandidate = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+        if (selectedCandidate) {
+            const selectedQuestionId = selectedCandidate.questionId;
+            if (selectedQuestionId === undefined) {
+                throw new Error("SELECTED_QUESTION_ID_UNDEFINED");
+            }
+            const question = await prisma.question.findUnique({
+                where: { id: selectedQuestionId },
+                select: {
+                    id: true,
+                    contentJson: true,
+                },
+            });
+            if (!question) {
+                throw new Error(`QUESTION_NOT_FOUND: ${selectedQuestionId}`);
+            }
+            nextQuestion = {
+                id: question.id,
+                contentJson: question.contentJson,
+            };
+        }
+    }
+
+    if (nextQuestion) {
+        await prisma.questionAnswer.upsert({
+            where: {
+                adaptiveAnswerId_questionId: {
+                    adaptiveAnswerId: adaptiveAnswer.id,
+                    questionId: nextQuestion.id,
+                },
+            },
+            create: {
+                adaptiveAnswerId: adaptiveAnswer.id,
+                questionId: nextQuestion.id,
+            },
+            update: {},
+        });
+
+        if (!questionIds.includes(nextQuestion.id)) {
+            questionIds.push(nextQuestion.id);
+        }
+        await prisma.adaptiveAnswer.update({
+            where: { id: adaptiveAnswer.id },
+            data: {
+                questionIds,
+                currentQuestionId: nextQuestion.id,
+            },
+        });
+    } else {
+        await prisma.adaptiveAnswer.update({
+            where: { id: adaptiveAnswer.id },
+            data: {
+                quizFinished: true,
+                currentQuestionId: null,
+            },
+        });
+    }
+    return buildResponse(nextQuestion);
+};
+
+/*
 const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
     let adaptiveAnswer = await prisma.adaptiveAnswer.findUnique({
         where: {
@@ -218,6 +457,7 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
         feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
     };
 };
+*/
 
 const getDesignQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
     let answerRecord = await prisma.answer.findFirst({
@@ -350,6 +590,10 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
                 select: {
                     mode: true,
                     betaEtaFileUrl: true,
+                    knowledgeSpaceBinary: true,
+                    ksNumberOfStates: true,
+                    ksNumberOfItems: true,
+                    ksQuestionIds: true,
                 },
             },
         },
@@ -383,17 +627,31 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
         const answerArray = Array.isArray(answerJson) ? answerJson as any[] : [];
         const input = answerArray.map(a => ({key: a.key, value: a.value, m: a.m, c: a.c}));
         const probs = adaptiveAnswer.adaptiveProbs as number[];
-        const ks = adaptiveAnswer.knowledgeSpace as number[][];
         const itemColumns = adaptiveAnswer.itemColumns as number[];
         const evaluation = await evaluateAnswersService(questionId, input);
-        if (!evaluation) {throw new Error("ANSWER_EVALUATION_FAILED");}
+        if (!evaluation) {
+            throw new Error("ANSWER_EVALUATION_FAILED");
+        }
         const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
         const itemIndex = itemColumns.indexOf(questionId);
-        if (itemIndex < 0) {throw new Error(`Question ID ${questionId} not found in knowledge-space itemColumns`);}
+        if (itemIndex < 0) {
+            throw new Error(`Question ID ${questionId} not found in knowledge-space itemColumns`);
+        }
 
-        if (!surveyInstance.survey.betaEtaFileUrl) {throw new Error("BETA_ETA_FILE_NOT_FOUND");}
-        const { beta, eta } = await fetchBetaEta(surveyInstance.survey.betaEtaFileUrl, itemColumns);
-        const bayesianResult = bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
+        if (!surveyInstance.survey.betaEtaFileUrl) {
+            throw new Error("BETA_ETA_FILE_NOT_FOUND");
+        }
+        const {beta, eta} = await fetchBetaEta(surveyInstance.survey.betaEtaFileUrl, itemColumns);
+        let bayesianResult;
+        if (surveyInstance.survey.knowledgeSpaceBinary && surveyInstance.survey.ksNumberOfStates != null && surveyInstance.survey.ksNumberOfItems != null) {
+            bayesianResult = bayesianUpdateBinary(surveyInstance.survey.knowledgeSpaceBinary, probs, surveyInstance.survey.ksNumberOfStates, surveyInstance.survey.ksNumberOfItems, beta, eta, itemIndex, result);
+        } else {
+            const ks = adaptiveAnswer.knowledgeSpace as number[][] | null;
+            if (!ks || ks.length === 0) {
+                throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
+            }
+            bayesianResult = bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
+        }
         await prisma.adaptiveAnswer.update({
             where: {
                 id: adaptiveAnswer.id,
@@ -772,11 +1030,9 @@ async function fetchKnowledgeSpace(knowledgeSpaceFileUrl: string): Promise<{ ks:
 
 async function fetchProbabilityDistribution(probabilityDistributionFileUrl: string): Promise<number[]> {
     const response = await fetch(probabilityDistributionFileUrl);
-
     if (!response.ok) {
         throw new Error(`Probability Distribution konnte nicht geladen werden: ${response.status} ${response.statusText}`);
     }
-
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(Buffer.from(arrayBuffer), {
         type: "buffer",

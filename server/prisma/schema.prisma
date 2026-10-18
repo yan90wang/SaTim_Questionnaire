@@ -90,27 +90,31 @@ enum survey_status {
 }
 
 model survey {
-  id                             Int              @id @default(autoincrement())
-  title                          String
-  description                    String?
-  createdAt                      DateTime         @default(now())
-  updatedAt                      DateTime         @updatedAt
-  createdById                    Int
-  updatedById                    Int
-  status                         survey_status    @default(IN_PROGRESS)
-  mode                           survey_mode
-  instances                      surveyInstance[]
-  booklet                        booklet[]
-  bookletMappingExcelUrl         String?
-  bookletVersion                 Int              @default(0)
-  isTwoTier                      Boolean          @default(false)
-  teacherAssigned                Boolean          @default(false)
+  id                     Int              @id @default(autoincrement())
+  title                  String
+  description            String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  createdById            Int
+  updatedById            Int
+  status                 survey_status    @default(IN_PROGRESS)
+  mode                   survey_mode
+  instances              surveyInstance[]
+  booklet                booklet[]
+  bookletMappingExcelUrl String?
+  bookletVersion         Int              @default(0)
+  isTwoTier              Boolean          @default(false)
+  teacherAssigned        Boolean          @default(false)
+  feedbackSurveyUrl      String?
+
   knowledgeSpaceFileUrl          String?
   probabilityDistributionFileUrl String?
   betaEtaFileUrl                 String?
   adaptiveThreshold              Float?
-  ksQuestionIds                  Int[]            @default([])
-  feedbackSurveyUrl              String?
+  ksQuestionIds                  Int[]   @default([])
+  knowledgeSpaceBinary           Bytes?
+  ksNumberOfStates               Int?
+  ksNumberOfItems                Int?
 
   createdBy users    @relation("CreatedSurveys", fields: [createdById], references: [id])
   updatedBy users    @relation("UpdatedSurveys", fields: [updatedById], references: [id])
@@ -200,11 +204,14 @@ model adaptiveAnswer {
   updatedAt         DateTime         @updatedAt
   endedAt           DateTime?
   freeParam         String?
-  adaptiveProbs     Json?
   currentQuestionId Int?
-  knowledgeSpace    Json
-  itemColumns       Int[]
   quizFinished      Boolean          @default(false)
+
+  adaptiveProbsBinary Bytes?
+  adaptiveProbs       Json?
+  knowledgeSpace      Json?
+  itemColumns         Int[]
+  reusedQuestionIds   Int[]  @default([])
 
   survey         survey         @relation(fields: [surveyId], references: [id])
   surveyInstance surveyInstance @relation("BelongsToAdaptiveInstance", fields: [surveyInstanceId], references: [id])

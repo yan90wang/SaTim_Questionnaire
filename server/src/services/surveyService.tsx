@@ -77,9 +77,7 @@ export const createSurvey = async (data: CreateSurveyInput, userId: number): Pro
             team_id: true,
         },
     });
-    if (!user || user.team_id === null) {
-        throw new Error("USER_OR_TEAM_NOT_FOUND");
-    }
+    if (!user || user.team_id === null) {throw new Error("USER_OR_TEAM_NOT_FOUND");}
     const createData: any = {
         title: data.title,
         mode: data.mode,
@@ -89,9 +87,7 @@ export const createSurvey = async (data: CreateSurveyInput, userId: number): Pro
         isTwoTier: data.isTwoTier,
         team_id: user.team_id,
     };
-
     if (data.description !== undefined) createData.description = data.description;
-
     if (data.instances && data.instances.length > 0) {
         createData.instances = {
             create: data.instances.map((inst) => ({
@@ -113,7 +109,7 @@ export const createSurvey = async (data: CreateSurveyInput, userId: number): Pro
 /**
  * Get all surveys
  */
-export const getAllSurveys = async (userId: number): Promise<(survey & { missingKsQuestionIds: number[] })[]> => {
+export const getAllSurveys = async (userId: number): Promise<(Omit<survey, "knowledgeSpaceBinary"> & { missingKsQuestionIds: number[]; })[]> => {
     const user = await prisma.users.findUnique({
         where: { id: userId },
         select: { team_id: true },
@@ -122,6 +118,9 @@ export const getAllSurveys = async (userId: number): Promise<(survey & { missing
     const surveys = await prisma.survey.findMany({
         where: {
             team_id: user.team_id,
+        },
+        omit: {
+            knowledgeSpaceBinary: true,
         },
         include: {
             createdBy: {select: {id: true, first_name: true, last_name: true}},
@@ -564,10 +563,7 @@ export const getAdaptiveQuestionDetailsExportService = async (surveyId: number, 
 /**
  * Export survey answers for selected instances, including question scores
  */
-export const getSurveyExport = async (
-    surveyId: number,
-    instanceIds: number[]
-): Promise<string> => {
+export const getSurveyExport = async (surveyId: number, instanceIds: number[]): Promise<string> => {
 
     const survey = await prisma.survey.findUnique({
         where: {id: surveyId},
@@ -871,7 +867,6 @@ function readBookletToSlotExcel(bookletSlotFile: Express.Multer.File, slotToQues
 
 function formatSwissDate(isoString: string | Date | null | undefined): string {
     if (!isoString) return "";
-
     const date = typeof isoString === "string" ? new Date(isoString) : isoString;
     return date.toLocaleString("de-CH", {
         timeZone: "Europe/Zurich",
@@ -1124,7 +1119,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     });
     if (!survey) {throw new Error("Erhebung wurde nicht gefunden.");}
 
-    const {numericItemColumns, numberOfStates,} = await validateKnowledgeSpaceFile(knowledgeSpaceFile);
+    const {numericItemColumns, numberOfStates, binaryKS} = await validateKnowledgeSpaceFile(knowledgeSpaceFile);
     const existingQuestions = await prisma.question.findMany({
         where: {
             id: {
@@ -1345,6 +1340,9 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
             knowledgeSpaceFileUrl,
             probabilityDistributionFileUrl,
             betaEtaFileUrl,
+            knowledgeSpaceBinary: Uint8Array.from(binaryKS),
+            ksNumberOfStates: numberOfStates,
+            ksNumberOfItems: numericItemColumns.length,
             ksQuestionIds: numericItemColumns,
         },
     });
@@ -1361,55 +1359,84 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     };
 };
 
-async function validateKnowledgeSpaceFile(file: Express.Multer.File): Promise<{ numericItemColumns: number[]; numberOfStates: number; }> {
+async function validateKnowledgeSpaceFile(file: Express.Multer.File): Promise<{ numericItemColumns: number[]; numberOfStates: number; numberOfItems: number; wordsPerState: number; binaryKS: Buffer; }> {
     const stream = Readable.from([file.buffer]);
     const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(stream, {sharedStrings: "cache", hyperlinks: "ignore", styles: "ignore", worksheets: "emit",});
     let numericItemColumns: number[] = [];
     let usedColumnIndexes: number[] = [];
     let numberOfStates = 0;
     let foundSheet = false;
+    let wordsPerState = 0;
+    const CHUNK_SIZE = 100_000;
+    const chunks: Buffer[] = [];
+    let currentChunk: Buffer | null = null;
+    let currentChunkCount = 0;
+    let bytesPerState = 0;
     for await (const worksheet of workbookReader) {
         if (foundSheet) break;
         foundSheet = true;
         for await (const row of worksheet) {
             if (row.number === 1) {
-                const headers: Array<{ index: number; value: string }> = [];
+                const headers: Array<{ index: number; value: string; }> = [];
                 row.eachCell((cell, colNumber) => {
                     const value = String(cell.value ?? "").trim();
                     if (value !== "") {
                         headers.push({index: colNumber, value,});
                     }
                 });
-
                 if (headers.length === 0) {
-                    throw new Error("Knowledge Space muss mindestens eine Aufgaben-Spalte enthalten.");
-                }
-
+                    throw new Error("Knowledge Space muss mindestens eine Aufgaben-Spalte enthalten.");}
                 usedColumnIndexes = headers.map(h => h.index);
                 numericItemColumns = headers.map(h => {
                     const id = Number(h.value);
                     if (!Number.isInteger(id)) {
-                        throw new Error(`Ungültige Aufgaben-ID: ${h.value}`);
-                    }
+                        throw new Error(`Ungültige Aufgaben-ID: ${h.value}`);}
                     return id;
                 });
+
+                if (new Set(numericItemColumns).size !== numericItemColumns.length
+                ) {
+                    throw new Error("Knowledge Space enthält doppelte Aufgaben-IDs.");
+                }
+                wordsPerState = Math.ceil(numericItemColumns.length / 32);
+                bytesPerState = wordsPerState * 4;
+                currentChunk = Buffer.alloc(CHUNK_SIZE * bytesPerState);
                 continue;
             }
             if (!row.hasValues) continue;
-            for (const colNumber of usedColumnIndexes) {
+            if (!currentChunk) {
+                throw new Error("Knowledge Space Kopfzeile konnte nicht gelesen werden.");
+            }
+
+            const stateOffset = currentChunkCount * bytesPerState;
+            for (let itemIndex = 0; itemIndex < usedColumnIndexes.length; itemIndex++) {
+                const colNumber = usedColumnIndexes[itemIndex]!;
                 const value = row.getCell(colNumber).value;
                 if (value === null || value === undefined || String(value).trim() === "") {
                     throw new Error(`Fehlender Wert im Knowledge Space in Zeile ${row.number}.`);
                 }
                 const numericValue = Number(value);
                 if (numericValue !== 0 && numericValue !== 1) {
-                    throw new Error(`Ungültiger Wert im Knowledge Space in Zeile ${row.number}. Erlaubt sind nur 0 und 1.`);
+                    throw new Error(`Ungültiger Wert im Knowledge Space in Zeile ${row.number}. ` + `Erlaubt sind nur 0 und 1.`);
+                }
+                if (numericValue === 1) {
+                    const wordIndex = Math.floor(itemIndex / 32);
+                    const bitIndex = itemIndex % 32;
+                    const offset = stateOffset + wordIndex * 4;
+                    const currentWord = currentChunk.readUInt32LE(offset);
+                    const updatedWord = (currentWord | (1 << bitIndex)) >>> 0;
+                    currentChunk.writeUInt32LE(updatedWord, offset);
                 }
             }
+            currentChunkCount++;
             numberOfStates++;
+            if (currentChunkCount === CHUNK_SIZE) {
+                chunks.push(currentChunk);
+                currentChunk = Buffer.alloc(CHUNK_SIZE * bytesPerState);
+                currentChunkCount = 0;
+            }
         }
     }
-
     if (!foundSheet) {
         throw new Error("Knowledge Space Excel-Datei enthält kein Tabellenblatt.");
     }
@@ -1419,5 +1446,15 @@ async function validateKnowledgeSpaceFile(file: Express.Multer.File): Promise<{ 
     if (numberOfStates === 0) {
         throw new Error("Knowledge Space Excel-Datei enthält keine Zustände.");
     }
-    return {numericItemColumns, numberOfStates,};
+    if (currentChunk && currentChunkCount > 0) {
+        chunks.push(currentChunk.subarray(0, currentChunkCount * bytesPerState));
+    }
+    const binaryKS = Buffer.concat(chunks, numberOfStates * bytesPerState);
+    return {
+        numericItemColumns,
+        numberOfStates,
+        numberOfItems: numericItemColumns.length,
+        wordsPerState,
+        binaryKS,
+    };
 }

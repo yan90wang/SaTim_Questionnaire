@@ -105,9 +105,37 @@ export function halfsplitQuestion(probs: number[], ks: number[][]): number[] {
 }
 
 
-/* ============================================================
- * Bayesian update
- * ============================================================ */
+export function halfsplitBinary(binaryKS: Uint8Array, probs: number[], numberOfStates: number, numberOfItems: number): number[] {
+    const wordsPerState = Math.ceil(numberOfItems / 32);
+    const bytesPerState = wordsPerState * 4;
+    if (binaryKS.byteLength !== numberOfStates * bytesPerState) {
+        throw new Error("INVALID_BINARY_KNOWLEDGE_SPACaE_SIZE");
+    }
+    if (probs.length !== numberOfStates) {
+        throw new Error("PROBABILITY_DISTRIBUTION_SIZE_MISMATCH");
+    }
+    const view = new DataView(binaryKS.buffer, binaryKS.byteOffset, binaryKS.byteLength);
+    const masteredProbabilities = new Float64Array(numberOfItems);
+    for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
+        const probability = probs[stateIndex]!;
+        if (probability === 0) continue;
+        const stateOffset = stateIndex * bytesPerState;
+        for (let wordIndex = 0; wordIndex < wordsPerState; wordIndex++) {
+            let word = view.getUint32(stateOffset + wordIndex * 4, true);
+            while (word !== 0) {
+                const bit = word & -word;
+                const bitIndex = 31 - Math.clz32(bit);
+                const itemIndex = wordIndex * 32 + bitIndex;
+                if (itemIndex < numberOfItems) {
+                    masteredProbabilities[itemIndex] = (masteredProbabilities[itemIndex] ?? 0) + probability;
+                }
+                word = (word & (word - 1)) >>> 0;}
+        }
+    }
+    return Array.from(masteredProbabilities, value => Math.abs(value - 0.5)
+   );
+}
+
 /**
  * Bayesian update equivalent to the Python implementation /
  * kmassessbayesian.
@@ -160,33 +188,87 @@ export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemVal
         up = betaVector[q]!;
         um = 1 - etaVector[q]!;
     }
-
     const posterior: number[] = new Array(numberOfStates);
     for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
         const containsQuestion = ks[stateIndex]![q]! === 1;
         const likelihood = containsQuestion ? up : um;
         posterior[stateIndex] = likelihood * probs[stateIndex]!;
     }
-
     const total = posterior.reduce((sum, value) => sum + value, 0);
-
     if (total === 0) {
         return [...probs];
     }
-
     return posterior.map(value => value / total);
 }
 
-/* ============================================================
- * Full assessment
- * ============================================================ */
-export interface SimplifiedAssessmentOptions {
-  beta?: number;
-  eta?: number;
-  threshold?: number;
-  prior?: number[];
-  probdev?: boolean;
-  random?: RandomFunction;
+export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numberOfStates: number, numberOfItems: number, beta: PerItemValue, eta: PerItemValue, item: number, response: 0 | 1): number[] {
+    const wordsPerState = Math.ceil(numberOfItems / 32);
+    const bytesPerState = wordsPerState * 4;
+
+    if (numberOfStates <= 0 || numberOfItems <= 0 || binaryKS.byteLength !== numberOfStates * bytesPerState) {
+        throw new Error("INVALID_BINARY_KNOWLEDGE_SPACE_SIZE");
+    }
+    validateProbs(probs, numberOfStates);
+    if (!Number.isInteger(item) || item < 0 || item >= numberOfItems) {
+        throw new Error(`item must be in [0, ${numberOfItems - 1}].`);
+    }
+
+    if (response !== 0 && response !== 1) {
+        throw new Error("response must be 0 or 1.");
+    }
+
+    const betaVector = broadcastPerItem(beta, numberOfItems);
+    const etaVector = broadcastPerItem(eta, numberOfItems);
+
+    for (let i = 0; i < numberOfItems; i++) {
+        const b = betaVector[i]!;
+        const e = etaVector[i]!;
+
+        if (!Number.isFinite(b) || !Number.isFinite(e) || b < 0 || b > 1 || e < 0 || e > 1) {
+            throw new Error("beta and eta entries must lie in [0, 1].");
+        }
+
+        if (b + e > 1) {
+            console.warn(
+                `beta[${i}] + eta[${i}] should be less than 1.`
+            );
+        }
+    }
+    const b = betaVector[item]!;
+    const e = etaVector[item]!;
+
+    const up = response === 1 ? 1 - b : b;
+    const um = response === 1 ? e : 1 - e;
+
+    const wordIndex = Math.floor(item / 32);
+    const bitIndex = item % 32;
+    const bitMask = (1 << bitIndex) >>> 0;
+    const view = new DataView(binaryKS.buffer, binaryKS.byteOffset, binaryKS.byteLength);
+    const posterior = new Array<number>(numberOfStates);
+    let total = 0;
+    for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
+        const offset =
+            stateIndex * bytesPerState +
+            wordIndex * 4;
+
+        const word = view.getUint32(offset, true);
+
+        const containsQuestion = (word & bitMask) !== 0;
+        const likelihood = containsQuestion ? up : um;
+
+        const value = likelihood * probs[stateIndex]!;
+
+        posterior[stateIndex] = value;
+        total += value;
+    }
+    if (total === 0) {
+        return [...probs];
+    }
+    for (let i = 0; i < numberOfStates; i++) {
+        posterior[i] = posterior[i]! / total;
+    }
+
+    return posterior;
 }
 
 
