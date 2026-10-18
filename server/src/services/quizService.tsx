@@ -1115,26 +1115,20 @@ async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Prom
     if (rows.length === 0) {
         throw new Error("BETA_ETA_FILE_IS_EMPTY");
     }
-
     const betaEtaByItem = new Map<number, { beta: number; eta: number; }>();
-
     for (const row of rows) {
         const itemId = Number(row.itemId);
         const beta = Number(row.beta);
         const eta = Number(row.eta);
-
         if (!Number.isInteger(itemId)) {
             throw new Error(`INVALID_ITEM_ID_IN_BETA_ETA_FILE: ${row.itemId}`);
         }
-
         if (!Number.isFinite(beta)) {
             throw new Error(`INVALID_BETA_FOR_ITEM: ${itemId}`);
         }
-
         if (!Number.isFinite(eta)) {
             throw new Error(`INVALID_ETA_FOR_ITEM: ${itemId}`);
         }
-
         if (betaEtaByItem.has(itemId)) {
             throw new Error(`DUPLICATE_ITEM_ID_IN_BETA_ETA_FILE: ${itemId}`);
         }
