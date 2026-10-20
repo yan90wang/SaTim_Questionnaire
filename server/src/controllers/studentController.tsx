@@ -68,7 +68,7 @@ export const registerStudent = async (
     console.error(err);
     if (err instanceof Error) {
         if (err.message === "Email already exists") {
-            return res.status(409).json({message: "Diese E-Mail-Adresse ist bereits registriert.",});}
+            return res.status(409).json({message: "Dieser Benutzername ist bereits registriert.",});}
 
         if (err.message === "Invalid registration token") {
             return res.status(400).json({message: "Der Registrierungslink ist ungültig.",});}

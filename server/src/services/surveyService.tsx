@@ -2,11 +2,10 @@ import prisma from "../config/prismaClient.js";
 import {Prisma, question_status, type survey, survey_mode, survey_status, type surveyInstance} from "@prisma/client";
 import XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import os from "os";
-import path from "path";
 import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
 import {supabase} from "../supabaseClient.js";
 import {Readable} from "node:stream";
+import {type ExportAnswer, questionAnswerInclude, writeSurveyExport} from "./helper/surveyExportHelper.js";
 
 /**
  * Interface for creating a new survey
@@ -564,227 +563,123 @@ export const getAdaptiveQuestionDetailsExportService = async (surveyId: number, 
  * Export survey answers for selected instances, including question scores
  */
 export const getSurveyExport = async (surveyId: number, instanceIds: number[]): Promise<string> => {
-
     const survey = await prisma.survey.findUnique({
-        where: {id: surveyId},
-        include: {
-            booklet: {
-                include: {
-                    bookletQuestion: true
-                }
-            }
-        }
+        where: { id: surveyId },
+        select: {
+            mode: true,
+        },
     });
-
     if (!survey) {
         throw new Error("Survey not found");
     }
+    if (survey.mode === "ADAPTIV") {
+        return getAdaptiveSurveyExport(surveyId, instanceIds);
+    }
+    return getDesignSurveyExport(surveyId, instanceIds);
+};
 
 
-    const allQuestionIds = Array.from(
-        new Set(
-            survey.booklet
-                .flatMap(b => b.bookletQuestion)
-                .map(q => q.questionId)
-        )
-    );
-
-
-    const instances = await prisma.surveyInstance.findMany({
-        where: {
-            id: {
-                in: instanceIds
+export const getDesignSurveyExport = async (surveyId: number, instanceIds: number[]): Promise<string> => {
+    const survey = await prisma.survey.findUnique({
+        where: { id: surveyId },
+        include: {
+            booklet: {
+                include: {
+                    bookletQuestion: true,
+                },
             },
-            surveyId
-        }
+        },
     });
-
-
+    if (!survey) {
+        throw new Error("Survey not found");
+    }
+    const allQuestionIds = [...new Set(survey.booklet.flatMap(booklet => booklet.bookletQuestion.map(q => q.questionId))),];
     const answers = await prisma.answer.findMany({
         where: {
             surveyId,
-            instanceId: {
-                in: instanceIds
-            }
+            instanceId: { in: instanceIds },
         },
         include: {
             questionsAnswers: {
-                include: {
-                    feedbackAnswer: true
-                }
+                include: questionAnswerInclude,
             },
             booklet: {
                 include: {
-                    bookletQuestion: true
-                }
-            }
-        }
-    });
-
-    const filePath = path.join(os.tmpdir(), `survey_export_${Date.now()}.xlsx`);
-
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-        filename: filePath,
-        useStyles: false,
-        useSharedStrings: false
-    });
-    const worksheet = workbook.addWorksheet("SurveyAnswers");
-    const baseColumns = [
-        "SchuelerID_System",
-        "SchuelerID_Extern",
-        "GruppenID_ausLink",
-        "GruppenBezeichnung",
-        "Booklet_ID",
-        "Booklet_Version",
-        "Freier_Parameter",
-        "Erhebung_StartedAt",
-        "Erhebung_EndedAt"
-    ];
-    const questionColumns = allQuestionIds.flatMap(id => {
-        const prefix = `Aufgabe_${id}_`;
-        return [
-            `${prefix}SystemID`,
-            `${prefix}Position`,
-            `${prefix}RawResponse`,
-            `${prefix}CorrectResponse`,
-            `${prefix}Score`,
-            `${prefix}Feedback`,
-            `${prefix}Zeit_Sekunden`,
-            `${prefix}Skipped`
-        ];
-    });
-    const columns = [...baseColumns, ...questionColumns];
-    worksheet.columns = columns.map((key) => ({header: key, key: key, width: 20}));
-    const evaluationCache = new Map<number, any>();
-    for (const answer of answers) {
-        const instance = instances.find(i => i.id === answer.instanceId);
-        if (!instance)
-            continue;
-        const qaMap = new Map<number, typeof answer.questionsAnswers[0]>();
-        for (const qa of answer.questionsAnswers) {
-            qaMap.set(qa.questionId, qa);
-        }
-
-        const bookletQuestionSet = new Set(answer.booklet.bookletQuestion.map(q => q.questionId));
-        const bookletPositionMap = new Map<number, number>();
-        for (const bq of answer.booklet.bookletQuestion) {
-            bookletPositionMap.set(
-                bq.questionId,
-                bq.position
-            );
-        }
-
-        const earliestStart =
-            answer.questionsAnswers
-                .map(q => q.solvingTimeStart)
-                .filter(Boolean)
-                .map(d => new Date(d).getTime())
-                .reduce(
-                    (min, v) => Math.min(min, v),
-                    Infinity
-                );
-
-
-        const user =
-            await prisma.anonymousUser.findUnique({
-                where: {
-                    externalId: answer.userId
+                    bookletQuestion: true,
                 },
-                select: {
-                    id: true
-                }
-            });
+            },
+        },
+    });
 
-        const row: any = {
-            SchuelerID_System: answer.userId,
-            SchuelerID_Extern: user?.id ?? "",
-            GruppenID_ausLink: instance.id,
-            GruppenBezeichnung: instance.name,
-            Booklet_ID: answer.booklet.bookletId,
-            Booklet_Version: answer.booklet.version,
-            Freier_Parameter: answer.freeParam,
-            Erhebung_StartedAt: earliestStart !== Infinity ? formatSwissDate(new Date(earliestStart).toISOString()) : "",
-            Erhebung_EndedAt: answer.endedAt ? formatSwissDate(answer.endedAt) : ""
-        };
+    const exportAnswers: ExportAnswer[] = answers.map(
+        answer => ({
+            userId: answer.userId,
+            instanceId: answer.instanceId,
+            freeParam: answer.freeParam,
+            endedAt: answer.endedAt,
+            questionsAnswers: answer.questionsAnswers,
+            assignedQuestionIds: answer.booklet.bookletQuestion.map(q => q.questionId),
+            positionMap: new Map(answer.booklet.bookletQuestion.map(q => [q.questionId, q.position,])),
+            additionalColumns: {
+                Booklet_ID: answer.booklet.bookletId,
+                Booklet_Version: answer.booklet.version,
+            },
+        })
+    );
+    return writeSurveyExport(surveyId, instanceIds, allQuestionIds, exportAnswers, "DESIGN");
+};
 
-        for (const questionId of allQuestionIds) {
-            const prefix = `Aufgabe_${questionId}_`;
-            if (!bookletQuestionSet.has(questionId)) {
-                Object.assign(row, {
-                    [`${prefix}SystemID`]: "",
-                    [`${prefix}Position`]: "",
-                    [`${prefix}RawResponse`]: "",
-                    [`${prefix}CorrectResponse`]: "",
-                    [`${prefix}Score`]: "",
-                    [`${prefix}Feedback`]: "",
-                    [`${prefix}Zeit_Sekunden`]: "",
-                    [`${prefix}Skipped`]: "",
-                });
-                continue;
-            }
-            const qa =
-                qaMap.get(questionId);
 
-            if (!qa) {
-                Object.assign(row, {
-                    [`${prefix}SystemID`]: questionId,
-                    [`${prefix}Position`]:
-                        bookletPositionMap.get(questionId) ?? "",
-                    [`${prefix}RawResponse`]: "",
-                    [`${prefix}CorrectResponse`]: "",
-                    [`${prefix}Score`]: "",
-                    [`${prefix}Feedback`]: "",
-                    [`${prefix}Zeit_Sekunden`]: "",
-                    [`${prefix}Skipped`]: "",
-                });
-
-                continue;
-            }
-            let result = evaluationCache.get(questionId);
-            if (!result) {
-                const answerArray =
-                    Array.isArray(qa.answerJson)
-                        ? qa.answerJson as any[]
-                        : [];
-                const input =
-                    answerArray.map(a => ({
-                        key: a.key,
-                        value: a.value,
-                        m: a.m,
-                        c: a.c
-                    }));
-
-                result = await evaluateAnswersService(questionId, input);
-                evaluationCache.set(questionId, result);
-            }
-            const answerArray = Array.isArray(qa.answerJson) ? qa.answerJson as any[] : [];
-            const userMap = new Map(answerArray.map(a => [a.key, a]));
-
-            const orderedCorrect = Object.keys(result?.correctAnswers ?? {}).map(key => ({
-                key,
-                user: userMap.get(key),
-                correct:
-                    result.correctAnswers[key]
-            }));
-
-            Object.assign(row, {
-                [`${prefix}SystemID`]: qa.questionId,
-                [`${prefix}Position`]: bookletPositionMap.get(questionId) ?? "",
-                [`${prefix}RawResponse`]: orderedCorrect.map(x => x.user ? formatUserAnswer([x.user]) : "[]").join(", "),
-                [`${prefix}CorrectResponse`]: orderedCorrect.map(x => formatCorrectAnswer({[x.key]: x.correct})).join(", "),
-                [`${prefix}Score`]: (result?.score ?? []).join(", "),
-                [`${prefix}Feedback`]: formatFeedback(qa.feedbackAnswer ?? []),
-                [`${prefix}Zeit_Sekunden`]: qa.solvedTime ?? "",
-                [`${prefix}Skipped`]: qa.skipped ?? ""
-            });
-        }
-        for (const key of Object.keys(row)) {
-            row[key] = sanitizeExcelValue(row[key]);
-        }
-        worksheet.addRow(row).commit();
+export const getAdaptiveSurveyExport = async (surveyId: number, instanceIds: number[]): Promise<string> => {
+    const survey = await prisma.survey.findUnique({
+        where: { id: surveyId },
+        select: {
+            ksQuestionIds: true,
+        },
+    });
+    if (!survey) {
+        throw new Error("Survey not found");
     }
-    await workbook.commit();
-    return filePath;
+    const allQuestionIds = survey.ksQuestionIds;
+    if (allQuestionIds.length === 0) {
+        throw new Error("Keine KS-Fragen vorhanden.");
+    }
+    const answers = await prisma.adaptiveAnswer.findMany({
+        where: {
+            surveyId,
+            surveyInstanceId: { in: instanceIds },
+        },
+        include: {
+            questionsAnswers: {
+                include: questionAnswerInclude,
+            },
+        },
+    });
+
+    const exportAnswers: ExportAnswer[] = answers.map(
+        answer => {
+            const probabilities = Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter(
+                    (value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
+            const highestProbability = probabilities.length > 0 ? Math.max(...probabilities) : "";
+            const highestProbabilityStateIndex = probabilities.length > 0 ? probabilities.indexOf(highestProbability as number) : -1;
+            return {
+                userId: answer.userId,
+                instanceId: answer.surveyInstanceId,
+                freeParam: answer.freeParam,
+                endedAt: answer.endedAt,
+                questionsAnswers: answer.questionsAnswers,
+                assignedQuestionIds: answer.questionIds,
+                positionMap: new Map(answer.questionIds.map((id, index) => [id, index + 1,])),
+                additionalColumns: {
+                    "Gefragte Items": answer.questionIds.join(", "),
+                    "Final Probabilities": probabilities.join(", "),
+                    "Höchste Probability - Wert": highestProbability,
+                    "Höchste Probability - KS-Zustand": highestProbabilityStateIndex >= 0 ? highestProbabilityStateIndex + 1 : "",
+                },
+            };
+        }
+    );
+    return writeSurveyExport(surveyId, instanceIds, allQuestionIds, exportAnswers, "ADAPTIV");
 };
 
 function readSlotToQuestionExcel(slotQuestionFile: Express.Multer.File) {
@@ -865,122 +760,6 @@ function readBookletToSlotExcel(bookletSlotFile: Express.Multer.File, slotToQues
     return bookletMap;
 }
 
-function formatSwissDate(isoString: string | Date | null | undefined): string {
-    if (!isoString) return "";
-    const date = typeof isoString === "string" ? new Date(isoString) : isoString;
-    return date.toLocaleString("de-CH", {
-        timeZone: "Europe/Zurich",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-    }).replace(",", "");
-}
-
-function formatFeedback(feedbackArray: any[]): string {
-    const questionKeys = ["q1", "q2", "q3"];
-    return questionKeys
-        .map(key => {
-            const fb = feedbackArray.find(f => f.questionKey === key);
-            return fb ? `[${key}: "${fb.selectedOption}"]` : `[${key}]`;
-        })
-        .join(", ");
-}
-
-function formatUserAnswer(answerArray: any[]): string {
-    if (!Array.isArray(answerArray) || !answerArray.length) return "[]";
-    return answerArray
-        .map(ans => {
-            switch (ans.kind) {
-                case "mc":
-                case "sc":
-                    if (!Array.isArray(ans.value)) return "[]";
-                    const result = ans.value
-                        .map((v: any, i: number) => (v.selected ? i + 1 : null))
-                        .filter((v: number | null) => v !== null);
-                    return result.length ? `[${result.join(", ")}]` : "[]";
-                case "numeric":
-                case "algebra":
-                case "lineEquation":
-                case "freeText":
-                case "freeTextInline":
-                    return `[${ans.value ? `${ans.value}` : ""}]`;
-                case "geoGebraPoints":
-                    let index2 = 1;
-                    return `[${ans.value
-                        .map((v: any) => `[${index2++}${v.x}, ${v.y}]`)
-                        .join(",")}]`;
-                case "geoGebraLines":
-                    return `[${ans.value
-                        .map((v: any) => `["c":${v.c}, "m":${v.m}, "p1":${v.point1.x}, ${v.point1.y}, "p2":${v.point2.x}, ${v.point2.y}]`)
-                        .join(",")}]`;
-                case "geoGebraSlope":
-                    return `[${ans.value ? `["l1": p1 - ${ans.value.point1Line1?.x}, ${ans.value.point1Line1?.y} zu p2 - ${ans.value.point2Line1?.x}, ${ans.value.point2Line1?.y}, "l2": p1 - ${ans.value.point1Line2?.x}, ${ans.value.point1Line2?.y} zu p2 - ${ans.value.point2Line2?.x}, ${ans.value.point2Line2?.y}]` : ""}]`;
-                default:
-                    return `[${ans.value ?? ""}]`;
-            }
-        })
-        .join(", ");
-}
-
-function formatCorrectAnswer(input: any): string {
-    const answerArray = normalizeCorrectAnswer(input);
-    if (!answerArray.length) return "[]";
-
-    return answerArray
-        .map(ans => {
-            switch (ans.type) {
-                case "mc":
-                    if (!Array.isArray(ans.value)) return "[]";
-                    let index = 1;
-                    return `[${ans.value.map(() => `${index++}`).join(", ")}]`;
-                case "sc":
-                    return `[${ans.value ? `${ans.value}` : ""}]`;
-                case "algebra":
-                case "freeText":
-                case "freeTextInline":
-                    return `[${ans.value ? `${ans.value}` : ""}]`;
-                case "lineEquation":
-                    return `[m:${ans.value?.m?.[0]?.value ?? ""}, c:${ans.value?.c?.[0]?.value ?? ""}]`;
-                case "numeric":
-                case "geoGebraSlope":
-                    return `[${ans.value?.map((v: any) => v.value).join(", ") ?? ""}]`;
-                case "geoGebraPoints":
-                    let index2 = 1;
-                    return Object.entries(ans.value || {}).map(([pointName, coords]: any) => {
-                        const x = coords.x?.map((v: any) => v.value).join("|") ?? "";
-                        const y = coords.y?.map((v: any) => v.value).join("|") ?? "";
-                        return `[${index2++}: x=${x}, y=${y}]`;
-                    })
-                        .join(", ");
-                case "geoGebraLines":
-                    let index3 = 1;
-                    return Object.entries(ans.value || {})
-                        .map(([lineName, line]: any) => {
-                            const m = line.m?.map((v: any) => v.value).join("|") ?? "";
-                            const c = line.c?.map((v: any) => v.value).join("|") ?? "";
-                            return `[${index3++}: m=${m}, c=${c}]`;
-                        })
-                        .join(", ");
-                default:
-                    return `[${JSON.stringify(ans.value ?? "")}]`;
-            }
-        })
-        .join(", ");
-}
-
-function normalizeCorrectAnswer(input: any): any[] {
-    if (!input) return [];
-    if (Array.isArray(input)) return input;
-    return Object.entries(input).map(([key, val]: any) => ({
-        key,
-        ...val
-    }));
-}
-
 const extractAnswerTypes = (contentJson: any): string[] => {
     if (!contentJson) return [];
     const allowedTypes = new Set(["algebra", "mcChoice", "numericInput", "freeText", "singleChoice", "freeTextInline", "lineEquation", "geoGebra", "geoGebraSlope"]);
@@ -1049,7 +828,7 @@ function extractMetadataMap(metadata: Prisma.JsonValue): Record<string, string> 
     return map;
 }
 
-function sanitizeExcelValue(value:any) {
+export function sanitizeExcelValue(value:any) {
     if (typeof value !== "string") return value;
 
     return value.replace(

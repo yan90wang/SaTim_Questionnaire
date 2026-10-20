@@ -153,6 +153,9 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                         break;
                     }
                     const userVal = evaluateCondition({value: String(userAnswer.value), operator: "="});
+                    if (userVal === null) {
+                        break;
+                    }
                     const check = checkNumericConditions(userVal, conditions as NumericCondition[]);
                     if (check) {
                         isCorrect = true;
@@ -292,6 +295,9 @@ function checkNumericConditions(value: number, conditions: NumericCondition[]): 
     let result = conditions[0]?.logic !== "or";
     for (const cond of conditions) {
         const target = evaluateCondition(cond);
+        if (target === null) {
+            return false;
+        }
         let check = false;
         switch (cond.operator) {
             case "=":
@@ -414,13 +420,19 @@ function getLineEquationCoeffs(latex: string): { m: number; c: number } | null {
     }
 }
 
-function evaluateCondition(cond: { value: string; operator: string }): number {
-    const expr = ce.parse(cond.value, { syntax: "latex" });
-    const num = Number(expr.simplify().N().valueOf());
-    if (!Number.isFinite(num)) {
-        throw new Error(`Invalid numeric value: ${cond.value}`);
+function evaluateCondition(cond: { value: string; operator: string }): number | null {
+    try {
+        const expr = ce.parse(cond.value, { syntax: "latex" });
+        const num = Number(expr.simplify().N().valueOf());
+        if (!Number.isFinite(num)) {
+            console.warn("Invalid numeric expression:", cond.value);
+            return null;
+        }
+        return num;
+    } catch (err) {
+        console.warn("Invalid expression:", cond.value, err);
+        return null;
     }
-    return num;
 }
 
 function substituteAndEvaluate(expressionLatex: string, variable: "m" | "c", value: number): number {
