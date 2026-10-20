@@ -149,7 +149,7 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
                 }
                 case "numeric": {
                     const conditions = Array.isArray(correctAnswer.value) ? correctAnswer.value : [{value: String(correctAnswer.value), operator: correctAnswer.operator || "=", logic: "and"}];
-                    if (!userAnswer.value) {
+                    if (userAnswer.value === null || userAnswer.value === undefined || String(userAnswer.value).trim() === "") {
                         break;
                     }
                     const userVal = evaluateCondition({value: String(userAnswer.value), operator: "="});
