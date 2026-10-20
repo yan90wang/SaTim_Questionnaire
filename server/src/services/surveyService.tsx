@@ -659,8 +659,15 @@ export const getAdaptiveSurveyExport = async (surveyId: number, instanceIds: num
     const exportAnswers: ExportAnswer[] = answers.map(
         answer => {
             const probabilities: number[] = Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
-            const highestProbability = probabilities.length > 0 ? Math.max(...probabilities) : "";
-            const highestProbabilityStateIndex = highestProbability !== "" ? probabilities.indexOf(highestProbability) : -1;
+            let highestProbability: number | "" = "";
+            let highestProbabilityStateIndex = -1;
+            for (let i = 0; i < probabilities.length; i++) {
+                const probability = probabilities[i];
+                if (probability !== undefined && (highestProbability === "" || probability > highestProbability)) {
+                    highestProbability = probability;
+                    highestProbabilityStateIndex = i;
+                }
+            }
             return {
                 userId: answer.userId,
                 instanceId: answer.surveyInstanceId,
