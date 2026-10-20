@@ -658,10 +658,9 @@ export const getAdaptiveSurveyExport = async (surveyId: number, instanceIds: num
 
     const exportAnswers: ExportAnswer[] = answers.map(
         answer => {
-            const probabilities = Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter(
-                    (value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
+            const probabilities: number[] = Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
             const highestProbability = probabilities.length > 0 ? Math.max(...probabilities) : "";
-            const highestProbabilityStateIndex = probabilities.length > 0 ? probabilities.indexOf(highestProbability as number) : -1;
+            const highestProbabilityStateIndex = highestProbability !== "" ? probabilities.indexOf(highestProbability) : -1;
             return {
                 userId: answer.userId,
                 instanceId: answer.surveyInstanceId,
@@ -672,7 +671,7 @@ export const getAdaptiveSurveyExport = async (surveyId: number, instanceIds: num
                 positionMap: new Map(answer.questionIds.map((id, index) => [id, index + 1,])),
                 additionalColumns: {
                     "Gefragte Items": answer.questionIds.join(", "),
-                    "Final Probabilities": probabilities.join(", "),
+                    "Finale Probabilities": probabilities.map(p => Number.isFinite(p) ? String(p) : "").join(", "),
                     "Höchste Probability - Wert": highestProbability,
                     "Höchste Probability - KS-Zustand": highestProbabilityStateIndex >= 0 ? highestProbabilityStateIndex + 1 : "",
                 },
