@@ -495,10 +495,41 @@ function getSCIndex(doc: any, targetId: string, type: string): number | null {
     traverse(doc);
     return result;
 }
+
 function getMCIndeces(doc: any, targetIds: string[]): number[] {
     return targetIds
-        .map(id => getSCIndex(doc, id, "multipleChoice"))
-        .filter((v): v is number => v !== null);
+        .map(id => getMCIndex(doc, id))
+        .filter((index): index is number => index !== null)
+        .sort((a, b) => a - b);
+}
+
+function getMCIndex(doc: any, targetId: string): number | null {
+    let index = 0;
+    const type = "mcChoice";
+    let result: number | null = null;
+    function traverse(node: any) {
+        if (!node || result !== null) return;
+        if (Array.isArray(node)) {
+            for (const child of node) {
+                traverse(child);
+            }
+            return;
+        }
+        if (node.type === type) {
+            index++;
+            if (node.attrs?.id === targetId) {
+                result = index;
+                return;
+            }
+        }
+        if (Array.isArray(node.content)) {
+            for (const child of node.content) {
+                traverse(child);
+            }
+        }
+    }
+    traverse(doc);
+    return result;
 }
 
 function findSharedPoint(points1: any[], points2: any[]) {

@@ -303,8 +303,7 @@ function formatCorrectAnswer(input: any): string {
             switch (ans.type) {
                 case "mc":
                     if (!Array.isArray(ans.value)) return "[]";
-                    let index = 1;
-                    return `[${ans.value.map(() => `${index++}`).join(", ")}]`;
+                    return `[${ans.value.join(", ")}]`;
                 case "sc":
                     return `[${ans.value ? `${ans.value}` : ""}]`;
                 case "algebra":
