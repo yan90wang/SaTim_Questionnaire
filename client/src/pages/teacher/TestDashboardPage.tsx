@@ -13,6 +13,7 @@ import {
     Typography,
 } from "@mui/material";
 import {PlayArrow,} from "@mui/icons-material";
+import { TableSortLabel } from "@mui/material";
 
 import TeacherLayout from "../../layouts/TeacherLayout";
 import {activateTestId, deactivateTest, getClassTests, type TeacherTest,} from "../../services/TestService";
@@ -30,6 +31,18 @@ const TestDashboardPage = () => {
     });
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
+    type SortColumn = "title" | "description" | "active" | "finishedStudents";
+    type SortDirection = "asc" | "desc";
+    const [sortColumn, setSortColumn] = useState<SortColumn>("title");
+    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const handleSort = (column: SortColumn) => {
+        if (sortColumn === column) {
+            setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+        } else {
+            setSortColumn(column);
+            setSortDirection("asc");
+        }
+    };
 
     useEffect(() => {
         const load = async () => {
@@ -57,7 +70,7 @@ const TestDashboardPage = () => {
     }, [tests, search]);
 
     const groupedTests = useMemo(() => {
-        return filteredTests.reduce<Record<string, TeacherTest[]>>(
+        const groups = filteredTests.reduce<Record<string, TeacherTest[]>>(
             (groups, test) => {
                 if (!groups[test.className]) {
                     groups[test.className] = [];
@@ -67,8 +80,29 @@ const TestDashboardPage = () => {
             },
             {}
         );
-    }, [filteredTests]);
-
+        Object.values(groups).forEach(classTests => {
+            classTests.sort((a, b) => {
+                let comparison = 0;
+                switch (sortColumn) {
+                    case "title":
+                        comparison = a.title.localeCompare(b.title, "de", {sensitivity: "base", numeric: true,});
+                        break;
+                    case "description":
+                        comparison = (a.description ?? "").localeCompare(b.description ?? "", "de", { sensitivity: "base" });
+                        break;
+                    case "active":
+                        comparison = Number(a.active) - Number(b.active);
+                        break;
+                    case "finishedStudents":
+                        comparison = a.finishedStudents - b.finishedStudents;
+                        break;
+                }
+                return sortDirection === "asc" ? comparison : -comparison;
+            });
+        });
+        return Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, "de", {sensitivity: "base", numeric: true,}))
+        );
+    }, [filteredTests, sortColumn, sortDirection]);
 
     const handleToggleTest = async (test: TeacherTest) => {
         try {
@@ -110,7 +144,6 @@ const TestDashboardPage = () => {
                 {/* Search */}
                 <Card sx={{mb: 4}}>
                     <CardHeader title="Tests suchen"/>
-
                     <CardContent>
                         <TextField
                             fullWidth
@@ -162,31 +195,30 @@ const TestDashboardPage = () => {
                                         <Box
                                             component="table"
                                             sx={{width: "100%", borderCollapse: "collapse",}}>
-                                            <Box
-                                                component="thead"
-                                                sx={{borderBottom: "1px solid", borderColor: "divider",}}>
+                                            <Box component="thead" sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
                                                 <Box component="tr">
-                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
-                                                        Test
-                                                    </Box>
+                                                    {([
+                                                        { key: "title", label: "Test" },
+                                                        { key: "description", label: "Beschreibung" },
+                                                        { key: "active", label: "Status" },
+                                                        { key: "finishedStudents", label: "Ergebnisse" },
+                                                    ] as const).map(({ key, label }) => (
+                                                        <Box component="th" key={key} sx={{ textAlign: "left", p: 1.5 }}>
+                                                            <TableSortLabel
+                                                                active={sortColumn === key}
+                                                                direction={sortColumn === key ? sortDirection : "asc"}
+                                                                onClick={() => handleSort(key)}
+                                                            >
+                                                                {label}
+                                                            </TableSortLabel>
+                                                        </Box>
+                                                    ))}
 
-                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
-                                                        Beschreibung
-                                                    </Box>
-
-                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
-                                                        Status
-                                                    </Box>
-
-                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
-                                                        Ergebnisse
-                                                    </Box>
-
-                                                    <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
+                                                    <Box component="th" sx={{ textAlign: "left", p: 1.5 }}>
                                                         Details
                                                     </Box>
 
-                                                    <Box component="th" sx={{textAlign: "right", p: 1.5,}}>
+                                                    <Box component="th" sx={{ textAlign: "right", p: 1.5 }}>
                                                         Aktion
                                                     </Box>
                                                 </Box>
