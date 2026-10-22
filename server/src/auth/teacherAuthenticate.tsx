@@ -9,21 +9,13 @@ declare global {
     }
 }
 
-export const teacherAuth = (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
+export const teacherAuth = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith("Bearer ")) {
-        return res.status(401).json({
-            message: "Unauthorized",
-        });
+        return res.status(401).json({message: "Unauthorized",});
     }
-
     const token = authHeader.substring(7);
-
     try {
         const decoded = jwt.verify(
             token,
@@ -32,9 +24,7 @@ export const teacherAuth = (
             teacherId: number;
             email: string;
         };
-
         req.teacherId = decoded.teacherId;
-
         next();
     } catch {
         return res.status(401).json({

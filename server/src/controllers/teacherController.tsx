@@ -1,6 +1,7 @@
 import type {Request, Response} from "express";
 
 import {
+    changeTeacherPasswordService,
     getTeacherByIdService,
     getTeachersService,
     loginTeacherService,
@@ -96,10 +97,7 @@ export const registerTeacher = async (req: Request<{}, {}, RegisterTeacherBody>,
     }
 };
 
-export const loginTeacher = async (
-    req: Request<{}, {}, TeacherLoginRequestBody>,
-    res: Response
-) => {
+export const loginTeacher = async (req: Request<{}, {}, TeacherLoginRequestBody>, res: Response) => {
     const { email, password } = req.body;
     try {
         const teacher = await loginTeacherService(email);
@@ -149,13 +147,9 @@ export const loginTeacher = async (
     }
 };
 
-export const getTeacherById = async (
-    req: Request<{ id: string }>,
-    res: Response
-) => {
+export const getTeacherById = async (req: Request<{ id: string }>, res: Response) => {
     try {
         const id = Number(req.params.id);
-
         if (isNaN(id)) {
             return res.status(400).json({
                 message: "Invalid teacher id",
@@ -222,6 +216,37 @@ export const updateTeacher = async (
             return res.status(404).json({message: "Teacher not found",});
         }
         return res.status(500).json({message: "Teacher could not be updated",});
+    }
+};
+
+export const changeTeacherPassword = async (req: Request, res: Response) => {
+    try {
+        const teacherId = Number((req as any).teacher?.id);
+        const { oldPassword, newPassword } = req.body;
+        if (!Number.isInteger(teacherId) || teacherId <= 0) {
+            return res.status(401).json({message: "Nicht autorisiert.",});
+        }
+        if (typeof oldPassword !== "string" || typeof newPassword !== "string" || !oldPassword || !newPassword) {
+            return res.status(400).json({
+                message: "Bitte füllen Sie alle Felder aus.",
+            });
+        }
+        await changeTeacherPasswordService(teacherId, oldPassword, newPassword);
+        return res.status(200).json({message: "Passwort wurde erfolgreich geändert.",});
+    } catch (err: any) {
+        switch (err.message) {
+            case "TEACHER_NOT_FOUND":
+                return res.status(404).json({message: "Lehrperson nicht gefunden.",});
+            case "INVALID_OLD_PASSWORD":
+                return res.status(400).json({message: "Das alte Passwort ist nicht korrekt.",});
+            case "PASSWORD_TOO_SHORT":
+                return res.status(400).json({message: "Das neue Passwort muss mindestens 8 Zeichen lang sein.",});
+            case "SAME_PASSWORD":
+                return res.status(400).json({message: "Das neue Passwort muss sich vom alten unterscheiden.",});
+            default:
+                console.error("Change teacher password error:", err);
+                return res.status(500).json({message: "Passwort konnte nicht geändert werden.",});
+        }
     }
 };
 

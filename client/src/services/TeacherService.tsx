@@ -123,10 +123,7 @@ export const getTeacherById = async (id: number): Promise<Teacher> => {
     return await response.json();
 };
 
-export const updateTeacher = async (
-    id: number,
-    data: UpdateTeacherRequest
-): Promise<Teacher> => {
+export const updateTeacher = async (id: number, data: UpdateTeacherRequest): Promise<Teacher> => {
     const response = await teacherAuthFetch(
         `${API_URL}/api/teacher/${id}`,
         {
@@ -137,14 +134,30 @@ export const updateTeacher = async (
             body: JSON.stringify(data),
         }
     );
-
     if (!response.ok) {
         const error = await response.json().catch(() => null);
-
-        throw new Error(
-            error?.message || "Failed to update teacher"
-        );
+        throw new Error(error?.message || "Failed to update teacher");
     }
 
     return await response.json();
+};
+
+export const changeTeacherPassword = async (oldPassword: string, newPassword: string): Promise<void> => {
+    const response = await teacherAuthFetch(
+        `${API_URL}/api/teacher/change-password`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                oldPassword,
+                newPassword,
+            }),
+        }
+    );
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message ?? "Passwort konnte nicht geändert werden.");
+    }
 };

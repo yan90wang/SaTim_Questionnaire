@@ -114,8 +114,8 @@ export const evaluateAnswersService = async (questionId: number, userAnswers: Us
     for (const key of Object.keys(correctAnswers)) {
         const correctAnswer = correctAnswers[key];
         const userAnswer = userAnswers.find(a => a.key === key);
-        const returnCorrectAnswer = returnCorrectAnswers[key];
         let isCorrect = false;
+        const returnCorrectAnswer = returnCorrectAnswers[key];
         if (returnCorrectAnswer && questionEntry.contentJson) {
             if (correctAnswer?.type === "sc") {
                 const index = getSCIndex(questionEntry.contentJson, correctAnswer.value, "singleChoice");

@@ -5,7 +5,7 @@ import {
     Button,
     Card,
     CardContent,
-    CardHeader, CircularProgress, FormControl, InputLabel,
+    CardHeader, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel,
     MenuItem,
     Select,
     Snackbar,
@@ -13,16 +13,14 @@ import {
     Typography,
 } from "@mui/material";
 import TeacherLayout from "../../layouts/TeacherLayout.tsx";
-import {getTeacherById, type Teacher, updateTeacher} from "../../services/TeacherService.tsx";
+import {changeTeacherPassword, getTeacherById, type Teacher, updateTeacher} from "../../services/TeacherService.tsx";
 import { SWISS_CANTONS } from "./ClassUtils.tsx";
 import {useParams} from "react-router-dom";
 
 const TeacherProfilePage = () => {
     const {teacherId: routeTeacherId} = useParams();
     const isAdminView = !!routeTeacherId;
-    const teacherId = routeTeacherId
-        ? Number(routeTeacherId)
-        : Number(localStorage.getItem("teacherId"));
+    const teacherId = routeTeacherId ? Number(routeTeacherId) : Number(localStorage.getItem("teacherId"));
     const [isLoading, setIsLoading] = useState(false);
     const [snackbar, setSnackbar] = useState({
         open: false,
@@ -38,6 +36,13 @@ const TeacherProfilePage = () => {
         school_address: "",
         canton: ""
     });
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+    const [oldPassword, setOldPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
     useEffect(() => {
         if (!teacherId) return;
@@ -75,6 +80,55 @@ const TeacherProfilePage = () => {
             ...prev,
             [field]: value,
         }));
+    };
+
+    const handleOpenPasswordDialog = () => {
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordError(null);
+        setPasswordSuccess(null);
+        setPasswordDialogOpen(true);
+    };
+
+    const handleClosePasswordDialog = () => {
+        if (!passwordLoading) {
+            setPasswordDialogOpen(false);
+        }
+    };
+
+    const handleChangePassword = async () => {
+        setPasswordError(null);
+        setPasswordSuccess(null);
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            setPasswordError("Bitte füllen Sie alle Felder aus.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordError("Die neuen Passwörter stimmen nicht überein.");
+            return;
+        }
+        if (newPassword.length < 8) {
+            setPasswordError("Das neue Passwort muss mindestens 8 Zeichen lang sein.");
+            return;
+        }
+        if (oldPassword === newPassword) {
+            setPasswordError("Das neue Passwort muss sich vom bisherigen Passwort unterscheiden.");
+            return;
+        }
+        try {
+            setPasswordLoading(true);
+            await changeTeacherPassword(oldPassword, newPassword);
+            setPasswordSuccess("Passwort wurde erfolgreich geändert.");
+            setOldPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+        } catch (err: any) {
+            console.error("Failed to change teacher password:", err);
+            setPasswordError(err?.response?.data?.message ?? err?.message ?? "Passwort konnte nicht geändert werden.");
+        } finally {
+            setPasswordLoading(false);
+        }
     };
 
     const handleSave = async () => {
@@ -249,9 +303,73 @@ const TeacherProfilePage = () => {
                             sx={{alignSelf: "flex-start"}}>
                             Änderungen speichern
                         </Button>
+                        {!isAdminView && (
+                            <Button
+                                variant="outlined"
+                                onClick={handleOpenPasswordDialog}
+                                disabled={isLoading}
+                                sx={{ alignSelf: "flex-start" }}>
+                                Passwort ändern
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
             </Box>
+            <Dialog open={passwordDialogOpen} onClose={handleClosePasswordDialog} fullWidth maxWidth="sm">
+                <DialogTitle>
+                    Passwort ändern
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 1,}}>
+                        {passwordError && (
+                            <Alert severity="error">
+                                {passwordError}
+                            </Alert>
+                        )}
+                        {passwordSuccess && (
+                            <Alert severity="success">
+                                {passwordSuccess}
+                            </Alert>
+                        )}
+                        <TextField
+                            label="Altes Passwort"
+                            type="password"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            fullWidth
+                            disabled={passwordLoading}
+                            autoComplete="current-password"
+                        />
+                        <TextField
+                            label="Neues Passwort"
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            fullWidth
+                            disabled={passwordLoading}
+                            autoComplete="new-password"
+                        />
+                        <TextField
+                            label="Neues Passwort wiederholen"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            fullWidth
+                            disabled={passwordLoading}
+                            autoComplete="new-password"
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Box sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, mt: 2}}>
+                    <Button onClick={handleClosePasswordDialog} disabled={passwordLoading}>
+                        Schliessen
+                    </Button>
+                    <Button variant="contained" onClick={handleChangePassword} disabled={passwordLoading || !!passwordSuccess}>
+                        {passwordLoading ? "Speichert..." : "Speichern"}
+                    </Button></Box>
+                </DialogActions>
+            </Dialog>
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}

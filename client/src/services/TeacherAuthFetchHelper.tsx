@@ -3,7 +3,6 @@ export const teacherAuthFetch = async (
     init?: RequestInit
 ) => {
     const token = localStorage.getItem("teacherToken");
-
     return fetch(input, {
         ...init,
         headers: {

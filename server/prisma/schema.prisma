@@ -22,6 +22,9 @@ model users {
   updatedSurveyInstances surveyInstance[] @relation("UpdatedSurveyInstances")
   booklets               booklet[]        @relation("CreatedBooklets")
 
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   team_id Int?
   team    team? @relation(fields: [team_id], references: [id])
 

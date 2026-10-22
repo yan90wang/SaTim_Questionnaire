@@ -255,3 +255,27 @@ export const updateTeacherService = async (
     });
 };
 
+export const changeTeacherPasswordService = async (teacherId: number, oldPassword: string, newPassword: string) => {
+    const teacher = await prisma.teacher.findUnique({
+        where: { id: teacherId },
+    });
+    if (!teacher) {
+        throw new Error("TEACHER_NOT_FOUND");
+    }
+    const isPasswordValid = await bcrypt.compare(oldPassword, teacher.password);
+    if (!isPasswordValid) {
+        throw new Error("INVALID_OLD_PASSWORD");
+    }
+    if (newPassword.length < 8) {
+        throw new Error("PASSWORD_TOO_SHORT");
+    }
+    if (oldPassword === newPassword) {
+        throw new Error("SAME_PASSWORD");
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await prisma.teacher.update({
+        where: { id: teacherId },
+        data: { password: hashedPassword },
+    });
+};
+
