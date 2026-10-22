@@ -63,7 +63,8 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
         numberOfStates = survey.ksNumberOfStates!;
         numberOfItems = survey.ksNumberOfItems!;
         itemColumns = survey.ksQuestionIds;
-    } else {
+    }
+    else {
         if (!survey.knowledgeSpaceFileUrl) {
             throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
         }
@@ -1060,9 +1061,7 @@ async function fetchProbabilityDistribution(probabilityDistributionFileUrl: stri
         throw new Error(`Probability Distribution konnte nicht geladen werden: ${response.status} ${response.statusText}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(Buffer.from(arrayBuffer), {
-        type: "buffer",
-    });
+    const workbook = XLSX.read(Buffer.from(arrayBuffer), {type: "buffer",});
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {
         throw new Error("Probability Distribution Excel-Datei enthält kein Tabellenblatt.");
@@ -1081,14 +1080,8 @@ async function fetchProbabilityDistribution(probabilityDistributionFileUrl: stri
         }
         return row.Probability;
     });
-
     const sum = probabilities.reduce((sum, probability) => sum + probability, 0);
-
-    if (sum <= 0) {
-        throw new Error("Die Wahrscheinlichkeitsverteilung muss eine positive Summe haben."
-        );
-    }
-
+    if (sum <= 0) {throw new Error("Die Wahrscheinlichkeitsverteilung muss eine positive Summe haben.");}
     return probabilities.map(probability => probability / sum);
 }
 

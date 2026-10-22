@@ -161,16 +161,10 @@ export const getSurveyById = async (id: number) => {
             },
         },
     });
-
     if (!survey) throw new Error("Survey not found");
-
     const now = new Date();
-    const hasActiveInstance = survey.instances?.some(
-        inst => new Date(inst.validFrom) <= now && now <= new Date(inst.validTo)
-    ) ?? false;
-
+    const hasActiveInstance = survey.instances?.some(inst => new Date(inst.validFrom) <= now && now <= new Date(inst.validTo)) ?? false;
     const hasBooklet = (survey.booklet?.length ?? 0) > 0;
-
     return {
         ...survey,
         hasActiveInstance,
@@ -1054,37 +1048,14 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         throw new Error(`Knowledge Space und Beta/Eta-Datei passen nicht zusammen. ` + details.join(" "));
     }
     const timestamp = Date.now();
-    const safeKsName = knowledgeSpaceFile.originalname
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9._-]/g, "");
-
     const safeProbabilityName = probabilityFile.originalname
         .replace(/\s+/g, "_")
         .replace(/[^a-zA-Z0-9._-]/g, "");
-
     const safeBetaEtaName = betaEtaFile.originalname
         .replace(/\s+/g, "_")
         .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    const ksFilePath = `surveys/${surveyId}/knowledge-space/${timestamp}_${safeKsName}`;
     const probabilityFilePath = `surveys/${surveyId}/probability/${timestamp}_${safeProbabilityName}`;
     const betaEtaFilePath = `surveys/${surveyId}/beta-eta/${timestamp}_${safeBetaEtaName}`;
-    const { error: ksUploadError } =
-        await supabase.storage
-            .from("knowledge-spaces")
-            .upload(
-                ksFilePath,
-                knowledgeSpaceFile.buffer,
-                {
-                    contentType: knowledgeSpaceFile.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    upsert: false,
-                }
-            );
-
-    if (ksUploadError) {
-        throw new Error("Knowledge Space konnte nicht in Supabase gespeichert werden: " + ksUploadError.message);
-    }
-
     const { error: probabilityUploadError } =
         await supabase.storage
             .from("probabilities")
@@ -1096,7 +1067,6 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
                     upsert: false,
                 }
             );
-
     if (probabilityUploadError) {
         throw new Error("Probability Excel konnte nicht in Supabase gespeichert werden: " + probabilityUploadError.message);
     }
@@ -1116,11 +1086,8 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     if (betaEtaUploadError) {
         throw new Error("Beta/Eta Excel konnte nicht in Supabase gespeichert werden: " + betaEtaUploadError.message);
     }
-
-    const {data: ksPublicUrlData,} = supabase.storage.from("knowledge-spaces").getPublicUrl(ksFilePath);
     const {data: probabilityPublicUrlData,} = supabase.storage.from("probabilities").getPublicUrl(probabilityFilePath);
     const {data: betaEtaPublicUrlData,} = supabase.storage.from("beta-eta").getPublicUrl(betaEtaFilePath);
-    const knowledgeSpaceFileUrl = ksPublicUrlData.publicUrl;
     const probabilityDistributionFileUrl = probabilityPublicUrlData.publicUrl;
     const betaEtaFileUrl = betaEtaPublicUrlData.publicUrl;
     await prisma.survey.update({
@@ -1128,7 +1095,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
             id: surveyId,
         },
         data: {
-            knowledgeSpaceFileUrl,
+            knowledgeSpaceFileUrl: null,
             probabilityDistributionFileUrl,
             betaEtaFileUrl,
             knowledgeSpaceBinary: Uint8Array.from(binaryKS),
@@ -1139,7 +1106,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     });
 
     return {
-        knowledgeSpaceFileUrl,
+        knowledgeSpaceFileUrl: null,
         probabilityDistributionFileUrl,
         betaEtaFileUrl,
         numberOfStates: numberOfStates,

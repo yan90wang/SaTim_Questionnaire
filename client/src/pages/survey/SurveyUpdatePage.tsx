@@ -70,6 +70,7 @@ interface SurveyDetail {
     adaptiveThreshold?: number | null;
     betaEtaFileUrl?: string | null;
     feedbackSurveyUrl?: string | null;
+    knowledgeSpaceBinary?: string | null;
 }
 
 const statusLabels: Record<SurveyDetail["status"], string> = {
@@ -136,7 +137,8 @@ const SurveyUpdatePage = () => {
                     probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
                     adaptiveThreshold: data.adaptiveThreshold ?? null,
                     betaEtaFileUrl: data.betaEtaFileUrl ?? null,
-                    feedbackSurveyUrl: data.feedbackSurveyUrl ?? null
+                    feedbackSurveyUrl: data.feedbackSurveyUrl ?? null,
+                    knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null
                 });
             } catch (err) {
                 console.error("Failed to fetch survey:", err);
@@ -429,27 +431,24 @@ const SurveyUpdatePage = () => {
         }
     };
     const handleDownloadAdaptiveFiles = async () => {
-        if (!survey?.knowledgeSpaceFileUrl || !survey?.probabilityDistributionFileUrl || !survey?.betaEtaFileUrl) {
+        if (!survey?.probabilityDistributionFileUrl || !survey?.betaEtaFileUrl) {
             return;
         }
         try {
             const zip = new JSZip();
-            const [knowledgeSpaceResponse, probabilityResponse, betaEtaResponse,] = await Promise.all([
-                fetch(survey.knowledgeSpaceFileUrl),
+            const [probabilityResponse, betaEtaResponse,] = await Promise.all([
                 fetch(survey.probabilityDistributionFileUrl),
                 fetch(survey.betaEtaFileUrl),
             ]);
 
-            if (!knowledgeSpaceResponse.ok || !probabilityResponse.ok || !betaEtaResponse.ok) {
+            if (!probabilityResponse.ok || !betaEtaResponse.ok) {
                 throw new Error("Eine oder mehrere Dateien konnten nicht geladen werden.");
             }
-            const [knowledgeSpaceBlob, probabilityBlob, betaEtaBlob,] = await Promise.all([
-                knowledgeSpaceResponse.blob(),
+            const [probabilityBlob, betaEtaBlob,] = await Promise.all([
                 probabilityResponse.blob(),
                 betaEtaResponse.blob(),
             ]);
 
-            zip.file("knowledge-space.xlsx", knowledgeSpaceBlob);
             zip.file("probability-distribution.xlsx", probabilityBlob);
             zip.file("beta-eta.xlsx", betaEtaBlob);
             const zipBlob = await zip.generateAsync({type: "blob",});
@@ -622,9 +621,9 @@ const SurveyUpdatePage = () => {
                                         setBetaEtaFile(null);
                                         setAdaptiveUploadDialogOpen(true);
                                     }}>
-                                    {survey.knowledgeSpaceFileUrl && survey.probabilityDistributionFileUrl && survey.betaEtaFileUrl ? "Adaptive Dateien ersetzen" : "Adaptive Dateien hochladen"}
+                                    {(survey.knowledgeSpaceFileUrl || survey.knowledgeSpaceBinary) && survey.probabilityDistributionFileUrl && survey.betaEtaFileUrl ? "Adaptive Dateien ersetzen" : "Adaptive Dateien hochladen"}
                                 </Button>
-                                {survey.knowledgeSpaceFileUrl &&
+                                {(survey.knowledgeSpaceFileUrl || survey.knowledgeSpaceBinary) &&
                                     survey.probabilityDistributionFileUrl &&
                                     survey.betaEtaFileUrl && (
                                         <Button variant="outlined" startIcon={<Download />} onClick={handleDownloadAdaptiveFiles}>
