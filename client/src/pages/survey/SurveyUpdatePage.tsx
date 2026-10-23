@@ -503,7 +503,7 @@ const SurveyUpdatePage = () => {
         handleSurveyAssignmentClick();
     };
 
-    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && !!survey.knowledgeSpaceFileUrl && !!survey.probabilityDistributionFileUrl && !!survey.betaEtaFileUrl);
+    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && (!!survey.knowledgeSpaceFileUrl || !!survey.knowledgeSpaceBinary) && (!!survey.probabilityDistributionFileUrl) && !!survey.betaEtaFileUrl);
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
