@@ -1,5 +1,5 @@
 import prisma from "../config/prismaClient.js";
-import type {Prisma} from "@prisma/client";
+import {Prisma} from "@prisma/client";
 import type {survey, surveyInstance} from "@prisma/client";
 import * as XLSX from "xlsx";
 import {evaluateAnswersService} from "./solverService.js";
@@ -95,13 +95,13 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
     });
 
     if (!adaptiveAnswer) {
-        if (!survey.probabilityDistributionFileUrl) {
-            throw new Error("PROBABILITY_FILE_NOT_FOUND");
+        if (survey.probabilityDistributionBinary === null && !survey.probabilityDistributionFileUrl) {
+            throw new Error("PROBABILITY_DISTRIBUTION_NOT_FOUND");
         }
         if (!survey.betaEtaFileUrl) {
             throw new Error("BETA_ETA_FILE_NOT_FOUND");
         }
-        const initialProbs = await fetchProbabilityDistribution(survey.probabilityDistributionFileUrl);
+        const initialProbs = survey.probabilityDistributionBinary !== null ? binaryToProbs(survey.probabilityDistributionBinary) : await fetchProbabilityDistribution(survey.probabilityDistributionFileUrl!);
         if (initialProbs.length !== numberOfStates) {
             throw new Error("PROBABILITY_DISTRIBUTION_SIZE_MISMATCH");
         }
@@ -158,13 +158,12 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 reusedQuestionIds.push(previousAnswer.questionId);
             }
         }
-
         adaptiveAnswer = await prisma.adaptiveAnswer.create({
             data: {
                 surveyId: survey.id,
                 surveyInstanceId: instance.id,
                 userId,
-                adaptiveProbs: updatedProbs,
+                adaptiveProbsBinary: probsToBinary(updatedProbs),
                 freeParam: freeParam ?? null,
                 questionIds: [],
                 itemColumns,
@@ -180,10 +179,10 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             },
         });
     }
-    if (!Array.isArray(adaptiveAnswer.adaptiveProbs)) {
-        throw new Error("ADAPTIVE_PROBABILITIES_NOT_FOUND");
+    if (!adaptiveAnswer) {
+        throw new Error("ADAPTIVE_ANSWER_NOT_FOUND");
     }
-    const probs = adaptiveAnswer.adaptiveProbs as number[];
+    const probs = getAdaptiveProbabilities(adaptiveAnswer);
     if (probs.length !== numberOfStates) {
         throw new Error("PROBABILITY_DISTRIBUTION_SIZE_MISMATCH");
     }
@@ -228,6 +227,9 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
             data: {
                 quizFinished: true,
                 currentQuestionId: null,
+            },
+            select: {
+                id: true,
             },
         });
 
@@ -304,6 +306,9 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 questionIds,
                 currentQuestionId: nextQuestion.id,
             },
+            select: {
+                id: true,
+            },
         });
     } else {
         await prisma.adaptiveAnswer.update({
@@ -312,179 +317,13 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 quizFinished: true,
                 currentQuestionId: null,
             },
+            select: {
+                id: true,
+            },
         });
     }
     return buildResponse(nextQuestion);
 };
-
-/*
-const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
-    let adaptiveAnswer = await prisma.adaptiveAnswer.findUnique({
-        where: {
-            surveyId_surveyInstanceId_userId: {
-                surveyId: survey.id,
-                surveyInstanceId: instance.id,
-                userId,
-            },
-        },
-        include: {
-            questionsAnswers: {
-                include: {
-                    feedbackAnswer: true,
-                },
-            },
-        },
-    });
-    if (!adaptiveAnswer) {
-        if (!survey.knowledgeSpaceFileUrl) {
-            throw new Error("KNOWLEDGE_SPACE_NOT_FOUND");
-        }
-        if (!survey.probabilityDistributionFileUrl) {
-            throw new Error("Prob_file_NOT_FOUND");
-        }
-        const {ks, itemColumns} = await fetchKnowledgeSpace(survey.knowledgeSpaceFileUrl);
-        const initialProbs = await fetchProbabilityDistribution(survey.probabilityDistributionFileUrl);
-        adaptiveAnswer = await prisma.adaptiveAnswer.create({
-            data: {
-                surveyId: survey.id,
-                surveyInstanceId: instance.id,
-                userId,
-                knowledgeSpace: ks,
-                adaptiveProbs: initialProbs,
-                freeParam: freeParam ?? null,
-                questionIds: [],
-                itemColumns: itemColumns
-            },
-            include: {
-                questionsAnswers: {
-                    include: {
-                        feedbackAnswer: true,
-                    },
-                },
-            },
-        });
-    }
-    if (!adaptiveAnswer) {throw new Error("adaptive answer should exist");}
-
-    const ks = adaptiveAnswer.knowledgeSpace as number[][];
-    const itemColumns = adaptiveAnswer.itemColumns as number[];
-    const questionIds = adaptiveAnswer.questionIds;
-    const probs = adaptiveAnswer.adaptiveProbs as number[];
-    let nextQuestion: QuizQuestion | null = null;
-    const threshold = survey.adaptiveThreshold;
-    if (threshold !== null && probs.some(prob => prob >= threshold)) {
-        await prisma.adaptiveAnswer.update({
-            where: {
-                id: adaptiveAnswer.id,
-            },
-            data: {
-                quizFinished: true
-            },
-        });
-        return {
-            surveyId: survey.id,
-            surveyTitle: survey.title,
-            instanceId: instance.id,
-            question: null,
-            answerId: adaptiveAnswer.id,
-            bookletId: 99999,
-            totalQuestions: adaptiveAnswer.questionIds.length,
-            answeredQuestions: adaptiveAnswer.questionsAnswers
-                .filter(qa => qa.solved || qa.skipped)
-                .length,
-            questionIds: adaptiveAnswer.questionIds,
-            answeredQuestionIds: adaptiveAnswer.questionsAnswers
-                .filter(qa => qa.solved || qa.skipped)
-                .map(qa => qa.questionId),
-            skipped: false,
-            solved: false,
-            previousAnswer: null,
-            skippedQuestions: adaptiveAnswer.questionsAnswers
-                .filter(qa => qa.skipped)
-                .map(qa => qa.questionId),
-            isTwoTier: survey.isTwoTier,
-            feedback: null,
-            isAdaptive: true,
-            feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
-        };
-    }
-    const solvedQuestionIds = adaptiveAnswer.questionsAnswers.filter(qa => qa.solved).map(qa => qa.questionId);
-    const distances = halfsplitQuestion(probs, ks);
-    const availableCandidates = distances
-        .map((distance, itemIndex) => ({itemIndex, questionId: itemColumns[itemIndex], distance,}))
-        .filter(candidate => candidate.questionId !== undefined && !solvedQuestionIds.includes(candidate.questionId));
-    const minimumDistance = Math.min(...availableCandidates.map(candidate => candidate.distance));
-    const bestCandidates = availableCandidates.filter(candidate => candidate.distance === minimumDistance);
-    const selectedCandidate = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
-    if (selectedCandidate) {
-       const selectedItemIndex = selectedCandidate.itemIndex;
-       const selectedQuestionId = itemColumns[selectedItemIndex];
-       if (selectedQuestionId === undefined) {throw new Error(`No question ID found for item index ${selectedItemIndex}`);}
-       nextQuestion = await prisma.question.findUnique({
-           where: {id: selectedQuestionId,}
-       });
-    }
-    if (nextQuestion) {
-        await prisma.questionAnswer.upsert({
-            where: {
-                adaptiveAnswerId_questionId: {
-                    adaptiveAnswerId: adaptiveAnswer.id,
-                    questionId: nextQuestion.id,
-                },
-            },
-            create: {
-                adaptiveAnswerId: adaptiveAnswer.id,
-                questionId: nextQuestion.id,
-            },
-            update: {},
-        });
-        if (!questionIds.includes(nextQuestion.id)) {
-            questionIds.push(nextQuestion.id);
-
-            await prisma.adaptiveAnswer.update({
-                where: {
-                    id: adaptiveAnswer.id,
-                },
-                data: {
-                    questionIds,
-                    currentQuestionId: nextQuestion.id,
-                },
-            });
-        }
-    } else {
-        await prisma.adaptiveAnswer.update({
-            where: {
-                id: adaptiveAnswer.id,
-            },
-            data: {
-                quizFinished: true,
-                currentQuestionId: null,
-            },
-        });
-    }
-    const cleanNextQuestion: QuizQuestion | null = nextQuestion ? {id: nextQuestion.id, contentJson: nextQuestion.contentJson,} : null;
-    return {
-        surveyId: survey.id,
-        surveyTitle: survey.title,
-        instanceId: instance.id,
-        question: cleanNextQuestion,
-        answerId: adaptiveAnswer.id,
-        bookletId: 99999,
-        totalQuestions: 0,
-        answeredQuestions: 0,
-        questionIds: questionIds,
-        answeredQuestionIds: [],
-        skipped: false,
-        solved: false,
-        previousAnswer: null,
-        skippedQuestions: [],
-        isTwoTier: survey.isTwoTier,
-        feedback: null,
-        isAdaptive: true,
-        feedbackSurveyUrl: survey.feedbackSurveyUrl ?? null,
-    };
-};
-*/
 
 const getDesignQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {
     let answerRecord = await prisma.answer.findFirst({
@@ -653,7 +492,7 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
         }
         const answerArray = Array.isArray(answerJson) ? answerJson as any[] : [];
         const input = answerArray.map(a => ({key: a.key, value: a.value, m: a.m, c: a.c}));
-        const probs = adaptiveAnswer.adaptiveProbs as number[];
+        const probs = getAdaptiveProbabilities(adaptiveAnswer);
         const itemColumns = adaptiveAnswer.itemColumns as number[];
         const evaluation = await evaluateAnswersService(questionId, input);
         if (!evaluation) {
@@ -684,7 +523,11 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
                 id: adaptiveAnswer.id,
             },
             data: {
-                adaptiveProbs: bayesianResult,
+                adaptiveProbsBinary: probsToBinary(bayesianResult),
+                adaptiveProbs: Prisma.DbNull,
+            },
+            select: {
+                id: true,
             },
         });
         return prisma.questionAnswer.update({
@@ -1144,4 +987,53 @@ async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Prom
         beta,
         eta,
     };
+}
+
+
+export function binaryToProbs(binary: Uint8Array): number[] {
+    if (binary.byteLength % 8 !== 0) {
+        throw new Error("INVALID_PROBABILITY_BINARY_SIZE");
+    }
+
+    const view = new DataView(
+        binary.buffer,
+        binary.byteOffset,
+        binary.byteLength
+    );
+
+    const probabilities = new Array<number>(binary.byteLength / 8);
+
+    for (let i = 0; i < probabilities.length; i++) {
+        probabilities[i] = view.getFloat64(i * 8, true);
+    }
+
+    return probabilities;
+}
+
+export function probsToBinary(
+    probs: number[]
+): Uint8Array<ArrayBuffer> {
+    const buffer = new ArrayBuffer(probs.length * 8);
+    const view = new DataView(buffer);
+
+    for (let i = 0; i < probs.length; i++) {
+        view.setFloat64(i * 8, probs[i]!, true);
+    }
+
+    return new Uint8Array(buffer);
+}
+
+function getAdaptiveProbabilities(adaptiveAnswer: { adaptiveProbsBinary: Uint8Array | null; adaptiveProbs: Prisma.JsonValue | null; }): number[] {
+    if (adaptiveAnswer.adaptiveProbsBinary !== null) {
+        return binaryToProbs(adaptiveAnswer.adaptiveProbsBinary);
+    }
+
+    if (Array.isArray(adaptiveAnswer.adaptiveProbs)) {
+        const probs = adaptiveAnswer.adaptiveProbs;
+        if (!probs.every((p): p is number => typeof p === "number" && Number.isFinite(p) && p >= 0)) {
+            throw new Error("INVALID_ADAPTIVE_PROBABILITIES");
+        }
+        return probs;
+    }
+    throw new Error("ADAPTIVE_PROBABILITIES_NOT_FOUND");
 }

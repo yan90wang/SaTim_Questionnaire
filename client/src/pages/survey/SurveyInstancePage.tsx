@@ -52,6 +52,7 @@ interface SurveyDetail {
     probabilityDistributionFileUrl?: string | null;
     betaEtaFileUrl?: string | null;
     adaptiveThreshold?: number | null;
+    probabilityDistributionBinary?: string | null;
 }
 
 interface SurveyInstance {
@@ -118,9 +119,9 @@ const SurveyInstancePage = () => {
                 probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
                 adaptiveThreshold: data.adaptiveThreshold ?? null,
                 betaEtaFileUrl: data.betaEtaFileUrl  ?? null,
-                knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null
+                knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null,
+                probabilityDistributionBinary: data.probabilityDistributionBinary ?? null,
             });
-
             const inst = await getSurveyInstances(data.id);
             setInstances(inst);
         } catch (err) {
@@ -243,7 +244,9 @@ const SurveyInstancePage = () => {
 
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
-
+    const isDesignNotReady = survey.mode === "DESIGN" && !survey.hasBooklet;
+    const isAdaptiveNotReady = survey.mode === "ADAPTIV" && ((!survey.knowledgeSpaceBinary && !survey.knowledgeSpaceFileUrl) || (!survey.probabilityDistributionBinary && !survey.probabilityDistributionFileUrl) || !survey.betaEtaFileUrl || !survey.adaptiveThreshold);
+    const isCreateDisabled = survey.status === "FINISHED" || isDesignNotReady || isAdaptiveNotReady;
     return (
         <MainLayout>
             <Box sx={{ minHeight: "100vh", py: 3, px: 2, mt: 6, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -253,23 +256,26 @@ const SurveyInstancePage = () => {
                     <Tooltip
                         title={
                             survey.status === "FINISHED"
-                                ? "Die Erhebung wurde bereits geschlossen, es können keine Durchführungen mehr angelegt werden."
-                                : survey.mode === "ADAPTIV" && (!survey.knowledgeSpaceFileUrl && !survey.knowledgeSpaceBinary) ? "Vor der Erstellung muss ein Knowledge Space hochgeladen werden."
-                                    : survey.mode === "ADAPTIV" && !survey.probabilityDistributionFileUrl ? "Vor der Erstellung muss eine Wahrscheinlichkeitsverteilung hochgeladen werden."
-                                        : survey.mode === "ADAPTIV" && !survey.betaEtaFileUrl ? "Vor der Erstellung müssen Beta/Eta Werte hochgeladen werden."
-                                            : survey.mode === "ADAPTIV" && (survey.adaptiveThreshold === null || survey.adaptiveThreshold === undefined) ? "Vor der Erstellung muss ein Abbruch Threshold festgelegt werden."
-                                                : survey.mode === "DESIGN" && !survey.hasBooklet ? "Vor der Erstellung muss eine Design-Matrix (Booklet) hochgeladen werden." : ""
-                        } arrow>
-                        <span>
-                            <Button
-                                disabled={survey.status === "FINISHED" || (survey.mode === "ADAPTIV" && ((!survey.knowledgeSpaceFileUrl && !survey.knowledgeSpaceBinary) || !survey.probabilityDistributionFileUrl || !survey.betaEtaFileUrl || survey.adaptiveThreshold === null || survey.adaptiveThreshold === undefined)) || (survey.mode === "DESIGN" && !survey.hasBooklet)}
-                                variant="contained"
-                                color="primary"
-                                startIcon={<Add />}
-                                onClick={() => setInstanceDialogOpen(true)}>
-                                Neue Durchführung erstellen
-                            </Button>
-                        </span>
+                                ? "Die Erhebung wurde bereits geschlossen."
+                                : isDesignNotReady
+                                    ? "Bitte zuerst eine Design-Matrix hochladen."
+                                    : isAdaptiveNotReady
+                                        ? "Bitte zuerst Knowledge Space, Probability und Beta/Eta hochladen."
+                                        : ""
+                        }
+                        arrow
+                    >
+    <span>
+        <Button
+            disabled={isCreateDisabled}
+            variant="contained"
+            color="primary"
+            startIcon={<Add />}
+            onClick={() => setInstanceDialogOpen(true)}
+        >
+            Neue Durchführung erstellen
+        </Button>
+    </span>
                     </Tooltip>
                     <Button sx={{ ml: 2 }}  variant="contained" color="primary" startIcon={<FileDownload />} onClick={() => setExportDialogOpen(true)} disabled={instances.length === 0}>
                         Ergebnisse Exportieren

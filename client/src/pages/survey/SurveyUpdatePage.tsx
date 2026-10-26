@@ -71,6 +71,7 @@ interface SurveyDetail {
     betaEtaFileUrl?: string | null;
     feedbackSurveyUrl?: string | null;
     knowledgeSpaceBinary?: string | null;
+    probabilityDistributionBinary?: string | null;
 }
 
 const statusLabels: Record<SurveyDetail["status"], string> = {
@@ -108,7 +109,7 @@ const SurveyUpdatePage = () => {
     const [feedbackUrlInput, setFeedbackUrlInput] = useState("");
     const [savingFeedbackUrl, setSavingFeedbackUrl] = useState(false);
     const [assignmentWarningOpen, setAssignmentWarningOpen] = useState(false);
-
+    const [assigningTeachers, setAssigningTeachers] = useState(false);
     useEffect(() => {
         const fetchSurvey = async () => {
             if (!id) return;
@@ -138,7 +139,8 @@ const SurveyUpdatePage = () => {
                     adaptiveThreshold: data.adaptiveThreshold ?? null,
                     betaEtaFileUrl: data.betaEtaFileUrl ?? null,
                     feedbackSurveyUrl: data.feedbackSurveyUrl ?? null,
-                    knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null
+                    knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null,
+                    probabilityDistributionBinary: data.probabilityDistributionBinary ?? null
                 });
             } catch (err) {
                 console.error("Failed to fetch survey:", err);
@@ -365,15 +367,11 @@ const SurveyUpdatePage = () => {
 
     const handleSurveyAssignmentClick = async () => {
         try {
-            if (!survey) return;
+            if (!survey || assigningTeachers) return;
+            setAssigningTeachers(true);
             const teacherAssigned = !survey.teacherAssigned;
             await assignSurveyToTeachers(survey.id, teacherAssigned);
-            setSurvey((prev) => {
-                if (!prev) {
-                    return prev;
-                }
-                return {...prev, teacherAssigned: !prev.teacherAssigned,};
-            });
+            setSurvey(prev => prev ? { ...prev, teacherAssigned } : prev);
             if (teacherAssigned) {
                 setSnackbar({open: true, message: "Test wurde den Lehrpersonen zugewiesen.", severity: "success",});
             } else {
@@ -382,6 +380,9 @@ const SurveyUpdatePage = () => {
         } catch (error) {
             console.error(error);
             setSnackbar({open: true, message: "Test konnte nicht zugewiesen werden.", severity: "error",});
+        }
+        finally {
+            setAssigningTeachers(false);
         }
     };
 
@@ -503,7 +504,7 @@ const SurveyUpdatePage = () => {
         handleSurveyAssignmentClick();
     };
 
-    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && (!!survey.knowledgeSpaceFileUrl || !!survey.knowledgeSpaceBinary) && (!!survey.probabilityDistributionFileUrl) && !!survey.betaEtaFileUrl);
+    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && (!!survey.knowledgeSpaceFileUrl || !!survey.knowledgeSpaceBinary) && (!!survey.probabilityDistributionFileUrl || !!survey.probabilityDistributionBinary) && !!survey.betaEtaFileUrl);
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
@@ -675,7 +676,7 @@ const SurveyUpdatePage = () => {
                                 />
 
                                 <Box sx={{ mt: 2 }}>
-                                    <Button variant="contained" onClick={handleSaveAdaptiveThreshold} disabled={saving}>
+                                    <Button variant="contained" onClick={handleSaveAdaptiveThreshold} disabled={saving} startIcon={saving ? <CircularProgress size={18} color="inherit" /> : undefined }>
                                         {saving ? "Speichern..." : "Threshold speichern"}
                                     </Button>
                                 </Box>
@@ -755,7 +756,7 @@ const SurveyUpdatePage = () => {
                 {isValidSurvey && (<Paper sx={{ p: 3 }}>
                     <Typography variant="h5">Zuweisung an alle Lehrpersonen</Typography>
                     <Typography sx={{ pb: 3 }}  color="text.secondary" >Schaltet die Erhebung für alle Lehrer frei, die Lehrperson kann dann eigenständig die Erhebung für einzelne Klassen aktivieren/deaktivieren.</Typography>
-                    <Button variant="contained" onClick={handleAssignmentButtonClick}>
+                    <Button variant="contained" disabled={assigningTeachers} startIcon={assigningTeachers ? <CircularProgress size={18} color="inherit" /> : undefined} onClick={handleAssignmentButtonClick}>
                         {survey.teacherAssigned ? "Zuweisung entfernen" : "Zuweisen"}
                     </Button>
                     <Divider sx={{ my: 3 }} />

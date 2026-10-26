@@ -6,6 +6,7 @@ import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
 import {supabase} from "../supabaseClient.js";
 import {Readable} from "node:stream";
 import {type ExportAnswer, questionAnswerInclude, writeSurveyExport} from "./helper/surveyExportHelper.js";
+import {binaryToProbs, probsToBinary} from "./quizService.js";
 
 /**
  * Interface for creating a new survey
@@ -108,7 +109,7 @@ export const createSurvey = async (data: CreateSurveyInput, userId: number): Pro
 /**
  * Get all surveys
  */
-export const getAllSurveys = async (userId: number): Promise<(Omit<survey, "knowledgeSpaceBinary"> & { missingKsQuestionIds: number[]; })[]> => {
+export const getAllSurveys = async (userId: number): Promise<(Omit<survey, "knowledgeSpaceBinary" | "probabilityDistributionBinary"> & { missingKsQuestionIds: number[]; })[]> => {
     const user = await prisma.users.findUnique({
         where: { id: userId },
         select: { team_id: true },
@@ -120,6 +121,7 @@ export const getAllSurveys = async (userId: number): Promise<(Omit<survey, "know
         },
         omit: {
             knowledgeSpaceBinary: true,
+            probabilityDistributionBinary: true,
         },
         include: {
             createdBy: {select: {id: true, first_name: true, last_name: true}},
@@ -652,7 +654,7 @@ export const getAdaptiveSurveyExport = async (surveyId: number, instanceIds: num
 
     const exportAnswers: ExportAnswer[] = answers.map(
         answer => {
-            const probabilities: number[] = Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
+            const probabilities: number[] = answer.adaptiveProbsBinary ? binaryToProbs(answer.adaptiveProbsBinary) : Array.isArray(answer.adaptiveProbs) ? answer.adaptiveProbs.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
             let highestProbability: number | "" = "";
             let highestProbabilityStateIndex = -1;
             for (let i = 0; i < probabilities.length; i++) {
@@ -840,9 +842,8 @@ export function sanitizeExcelValue(value:any) {
 export const setSurveyTeacherAssignableService = async (surveyId: number, teacherAssigned: boolean) => {
     return prisma.$transaction(async (tx) => {
         const survey = await tx.survey.findUnique({
-            where: {
-                id: surveyId,
-            },
+            where: { id: surveyId },
+            select: { team_id: true },
         });
 
         if (!survey) {
@@ -850,24 +851,27 @@ export const setSurveyTeacherAssignableService = async (surveyId: number, teache
         }
 
         const updatedSurvey = await tx.survey.update({
-            where: {
-                id: surveyId,
-            },
-            data: {
-                teacherAssigned,
+            where: { id: surveyId },
+            data: { teacherAssigned },
+            select: {
+                id: true,
+                teacherAssigned: true,
             },
         });
 
         if (teacherAssigned) {
             const classes = await tx.schoolClass.findMany({
-                select: {
-                    id: true,
+                where: {
+                    teacher: {
+                        teamId: survey.team_id,
+                    },
                 },
+                select: { id: true },
             });
 
             if (classes.length > 0) {
                 await tx.classTestInstance.createMany({
-                    data: classes.map((schoolClass) => ({
+                    data: classes.map(schoolClass => ({
                         surveyId,
                         classId: schoolClass.id,
                         active: false,
@@ -876,9 +880,8 @@ export const setSurveyTeacherAssignableService = async (surveyId: number, teache
                 });
             }
         }
-
         return updatedSurvey;
-    });
+    }, {maxWait: 10000, timeout: 30000,});
 };
 
 export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpaceFile: Express.Multer.File, probabilityFile: Express.Multer.File, betaEtaFile: Express.Multer.File) => {
@@ -1032,6 +1035,14 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     if (numberOfStates !== probabilities.length) {
         throw new Error(`Knowledge Space und Probability-Datei passen nicht zusammen. ` + `Knowledge Space enthält ${numberOfStates} Zustände, ` + `Probability-Datei enthält ${probabilities.length} Einträge.`);
     }
+    const probabilityValues = probabilities.map(p => p.probability);
+    const probabilitySum = probabilityValues.reduce((sum, probability) => sum + probability, 0);
+    if (!Number.isFinite(probabilitySum) || probabilitySum <= 0) {
+        throw new Error("Die Wahrscheinlichkeitsverteilung muss eine positive Summe haben.");
+    }
+    const normalizedProbabilities = probabilityValues.map(probability => probability / probabilitySum);
+    const probabilityBinary = probsToBinary(normalizedProbabilities);
+
     const ksIdSet = new Set(numericItemColumns);
     const betaEtaIds = betaEta.map(entry => entry.id);
     const betaEtaIdSet = new Set(betaEtaIds);
@@ -1048,28 +1059,10 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         throw new Error(`Knowledge Space und Beta/Eta-Datei passen nicht zusammen. ` + details.join(" "));
     }
     const timestamp = Date.now();
-    const safeProbabilityName = probabilityFile.originalname
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9._-]/g, "");
     const safeBetaEtaName = betaEtaFile.originalname
         .replace(/\s+/g, "_")
         .replace(/[^a-zA-Z0-9._-]/g, "");
-    const probabilityFilePath = `surveys/${surveyId}/probability/${timestamp}_${safeProbabilityName}`;
     const betaEtaFilePath = `surveys/${surveyId}/beta-eta/${timestamp}_${safeBetaEtaName}`;
-    const { error: probabilityUploadError } =
-        await supabase.storage
-            .from("probabilities")
-            .upload(
-                probabilityFilePath,
-                probabilityFile.buffer,
-                {
-                    contentType: probabilityFile.mimetype || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    upsert: false,
-                }
-            );
-    if (probabilityUploadError) {
-        throw new Error("Probability Excel konnte nicht in Supabase gespeichert werden: " + probabilityUploadError.message);
-    }
     const { error: betaEtaUploadError } =
         await supabase.storage
             .from("beta-eta")
@@ -1086,9 +1079,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
     if (betaEtaUploadError) {
         throw new Error("Beta/Eta Excel konnte nicht in Supabase gespeichert werden: " + betaEtaUploadError.message);
     }
-    const {data: probabilityPublicUrlData,} = supabase.storage.from("probabilities").getPublicUrl(probabilityFilePath);
     const {data: betaEtaPublicUrlData,} = supabase.storage.from("beta-eta").getPublicUrl(betaEtaFilePath);
-    const probabilityDistributionFileUrl = probabilityPublicUrlData.publicUrl;
     const betaEtaFileUrl = betaEtaPublicUrlData.publicUrl;
     await prisma.survey.update({
         where: {
@@ -1096,7 +1087,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
         },
         data: {
             knowledgeSpaceFileUrl: null,
-            probabilityDistributionFileUrl,
+            probabilityDistributionBinary: probabilityBinary,
             betaEtaFileUrl,
             knowledgeSpaceBinary: Uint8Array.from(binaryKS),
             ksNumberOfStates: numberOfStates,
@@ -1107,7 +1098,7 @@ export const uploadAdaptiveFilesService = async (surveyId: number, knowledgeSpac
 
     return {
         knowledgeSpaceFileUrl: null,
-        probabilityDistributionFileUrl,
+        probabilityDistributionFileUrl: null,
         betaEtaFileUrl,
         numberOfStates: numberOfStates,
         numberOfItems: numericItemColumns.length,

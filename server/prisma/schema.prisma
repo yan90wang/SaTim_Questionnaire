@@ -113,6 +113,7 @@ model survey {
   adaptiveThreshold              Float?
   ksQuestionIds                  Int[]   @default([])
   knowledgeSpaceBinary           Bytes?
+  probabilityDistributionBinary  Bytes?
   ksNumberOfStates               Int?
   ksNumberOfItems                Int?
 
@@ -120,8 +121,8 @@ model survey {
   updatedBy users    @relation("UpdatedSurveys", fields: [updatedById], references: [id])
   answer    answer[] @relation("BelogsToSurvey")
 
-  team_id           Int?
-  team              team?               @relation(fields: [team_id], references: [id])
+  team_id           Int
+  team              team                @relation(fields: [team_id], references: [id])
   classTestInstance classTestInstance[]
   adaptiveAnswer    adaptiveAnswer[]
 }
