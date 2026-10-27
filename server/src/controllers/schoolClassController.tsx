@@ -6,7 +6,7 @@ import {
     deleteClassService,
     ensureTeacherBelongsToUserTeam,
     getClassesService,
-    getClassService, getClassTestsService, getTestDetailsService,
+    getClassService, getClassTestsService, getTestDetailsService, resetStudentPasswordService,
     updateClassService,
 } from "../services/schoolClassService.js";
 
@@ -227,5 +227,26 @@ export const getTestDetails = async (req: Request<{testId: string}>, res: Respon
             return res.status(403).json({message: "Access denied",});
         }
         return res.status(500).json({message: "Test details could not be loaded",});
+    }
+};
+
+export const resetStudentPasswordController = async (req: Request, res: Response) => {
+    try {
+        const classId = Number(req.params.classId);
+        const studentId = Number(req.params.studentId);
+        const teacherId = req.teacherId!;
+        if (!Number.isSafeInteger(classId) || classId <= 0 || !Number.isSafeInteger(studentId) || studentId <= 0) {
+            res.status(400).json({message: "Ungültige ID."});
+            return;
+        }
+        const result = await resetStudentPasswordService(classId, studentId, teacherId);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        if (error instanceof Error && ["CLASS_NOT_FOUND_OR_FORBIDDEN", "STUDENT_NOT_FOUND"].includes(error.message)) {
+            res.status(404).json({message: "Klasse oder Schüler nicht gefunden.",});
+            return;
+        }
+        res.status(500).json({message: "Passwort konnte nicht zurückgesetzt werden.",});
     }
 };

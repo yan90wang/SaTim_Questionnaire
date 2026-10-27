@@ -1,6 +1,8 @@
 import prisma from "../config/prismaClient.js";
 import {getUserTeam} from "./teamServices.js";
 import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
+import crypto from "node:crypto";
+import bcrypt from "bcrypt";
 
 export const getClassesService = async (teacherId: number) => {
     return prisma.schoolClass.findMany({
@@ -548,4 +550,41 @@ const evaluateQuestionAnswer = async (questionId: number, answerJson: unknown): 
     const result = await evaluateAnswersService(questionId, userAnswers);
     if (!result) {return false;}
     return (result.score.length > 0 && result.score.every((score) => score === 1));
+};
+
+export const resetStudentPasswordService = async (classId: number, studentId: number, teacherId: number) => {
+    const schoolClass = await prisma.schoolClass.findFirst({
+        where: {
+            id: classId,
+            teacherId,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!schoolClass) {throw new Error("CLASS_NOT_FOUND_OR_FORBIDDEN");}
+
+    const student = await prisma.student.findFirst({
+        where: {
+            id: studentId,
+            classId,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!student) {throw new Error("STUDENT_NOT_FOUND");}
+    const password = crypto.randomBytes(12).toString("base64url");
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await prisma.student.update({
+        where: {
+            id: studentId,
+        },
+        data: {
+            password: hashedPassword,
+        },
+    });
+    return {password,};
 };

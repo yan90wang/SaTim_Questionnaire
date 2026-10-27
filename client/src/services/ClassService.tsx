@@ -167,3 +167,28 @@ export const registerUnder14Student = async (
 
     return response.json();
 };
+
+export interface ResetStudentPasswordResult {
+    password: string;
+}
+
+export const resetStudentPassword = async (classId: number, studentId: number, isAdminView = false): Promise<ResetStudentPasswordResult> => {
+    const response = await classAuthFetch(
+        `${API_URL}/api/schoolclass/${classId}/students/${studentId}/reset-password`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            cache: "no-store",
+        },
+        isAdminView
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || "Passwort konnte nicht zurückgesetzt werden.");
+    }
+
+    return response.json();
+};

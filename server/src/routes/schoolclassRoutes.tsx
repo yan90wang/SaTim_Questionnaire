@@ -8,6 +8,7 @@ import {
     getClasses,
     getClassTests,
     getTestDetails,
+    resetStudentPasswordController,
     updateClass,
 } from "../controllers/schoolClassController.js";
 import {teacherAuth} from "../auth/teacherAuthenticate.js";
@@ -23,7 +24,7 @@ router.get("/:id", teacherAuth, getClass);
 router.post("/", teacherAuth, createClass);
 router.put("/:id", teacherAuth, updateClass);
 router.post("/:classId/register-under-14", teacherAuth, registerUnder14Student);
-
+router.post("/:classId/students/:studentId/reset-password", teacherAuth, resetStudentPasswordController);
 router.delete("/:id", teacherAuth, deleteClass);
 
 export default router;

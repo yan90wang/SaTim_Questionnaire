@@ -27,6 +27,8 @@ import {
     type SchoolClass, updateClass,
 } from "../../services/ClassService";
 import { SchoolClassType } from "./ClassUtils.tsx";
+import { LockReset } from "@mui/icons-material";
+import { resetStudentPassword } from "../../services/ClassService";
 
 interface Student {
     id: number;
@@ -55,6 +57,11 @@ const ClassPage = () => {
     const [newClassType, setNewClassType] = useState("");
     const [savingClass, setSavingClass] = useState(false);
     const [customType, setCustomType] = useState("");
+    const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+    const [selectedStudentId, setSelectedStudentId] = useState<number | "">("");
+    const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+    const [generatedResetPassword, setGeneratedResetPassword] = useState<string | null>(null);
+    const [resettingPassword, setResettingPassword] = useState(false);
     const getAge = (birthday: string): number | null => {
         if (!birthday) return null;
         const birthDate = new Date(`${birthday}T00:00:00`);
@@ -163,6 +170,21 @@ const ClassPage = () => {
         }
     };
 
+    const handleResetStudentPassword = async () => {
+        if (!schoolClass || selectedStudentId === "") return;
+        try {
+            setResettingPassword(true);
+            const result = await resetStudentPassword(schoolClass.id, selectedStudentId);
+            setConfirmResetOpen(false);
+            setGeneratedResetPassword(result.password);
+        } catch (error) {
+            console.error(error);
+            setSnackbar({open: true, message: "Passwort konnte nicht zurückgesetzt werden.", severity: "error",});
+        } finally {
+            setResettingPassword(false);
+        }
+    };
+
     if (loading || loadingSuS) {
         return (
             <TeacherLayout adminView={isAdminView} teacherId={teacherId}>
@@ -264,16 +286,29 @@ const ClassPage = () => {
                                 <ContentCopy/>
                             </IconButton>
                         </Box>
-                        <Button
-                            variant="outlined"
-                            sx={{mt: 2}}
-                            onClick={() => {
-                                setUnder14Birthday("");
-                                setGeneratedCredentials(null);
-                                setUnder14DialogOpen(true);
-                            }}>
-                            Schüler unter 14 registrieren
-                        </Button>
+                        <Box sx={{display: "flex", gap: 2, mt: 2, flexWrap: "wrap"}}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => {
+                                    setUnder14Birthday("");
+                                    setGeneratedCredentials(null);
+                                    setUnder14DialogOpen(true);
+                                }}>
+                                Schüler unter 14 registrieren
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                startIcon={<LockReset />}
+                                disabled={students.length === 0}
+                                onClick={() => {
+                                    setSelectedStudentId("");
+                                    setGeneratedResetPassword(null);
+                                    setResetPasswordDialogOpen(true);
+                                }}>
+                                Schülerpasswort zurücksetzen
+                            </Button>
+                        </Box>
                     </CardContent>
                 </Card>
 
@@ -429,14 +464,7 @@ const ClassPage = () => {
                 </DialogActions>
             </Dialog>
 
-            <Dialog
-                open={editClassDialogOpen}
-                onClose={() => {
-                    if (!savingClass) setEditClassDialogOpen(false);
-                }}
-                fullWidth
-                maxWidth="sm"
-            >
+            <Dialog open={editClassDialogOpen} onClose={() => {if (!savingClass) setEditClassDialogOpen(false);}} fullWidth maxWidth="sm">
                 <DialogTitle>Klasse bearbeiten</DialogTitle>
 
                 <DialogContent>
@@ -496,7 +524,137 @@ const ClassPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <Dialog open={resetPasswordDialogOpen && !confirmResetOpen && !generatedResetPassword} onClose={() => setResetPasswordDialogOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>
+                    Schülerpasswort zurücksetzen
+                </DialogTitle>
 
+                <DialogContent>
+                    <Typography sx={{mb: 2}}>
+                        Wählen Sie den Schüler oder die Schülerin aus,
+                        für den bzw. die ein neues Passwort erstellt werden soll.
+                    </Typography>
+
+                    <TextField
+                        select
+                        fullWidth
+                        label="Schüler auswählen"
+                        value={selectedStudentId}
+                        onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+                        sx={{mt: 1}}>
+                        {students.map(student => (
+                            <MenuItem key={student.id} value={student.id}>
+                                {student.email}{" - Geb.:"}{new Date(student.birthday).toLocaleDateString()}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setResetPasswordDialogOpen(false)}>
+                        Abbrechen
+                    </Button>
+                    <Button variant="contained" disabled={selectedStudentId === ""} onClick={() => setConfirmResetOpen(true)}>
+                        Weiter
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog
+                open={confirmResetOpen}
+                onClose={(_event, reason) => {
+                    if (resettingPassword) return;
+                    if (reason === "backdropClick") return;
+                    setConfirmResetOpen(false);
+                }}
+                fullWidth
+                maxWidth="sm">
+                <DialogTitle>
+                    Passwort wirklich zurücksetzen?
+                </DialogTitle>
+
+                <DialogContent>
+                    <Alert severity="warning" sx={{mb: 2}}>
+                        Das bisherige Passwort wird dauerhaft überschrieben.
+                        Der Schüler kann sich danach nur noch mit dem neuen
+                        Passwort anmelden.
+                    </Alert>
+                    <Typography>
+                        Möchten Sie das Passwort für{" "}
+                        <strong>
+                            {students.find(s => s.id === selectedStudentId)?.email ?? `Schüler ${selectedStudentId}`}
+                        </strong>{" "}
+                        wirklich zurücksetzen?
+                    </Typography>
+                </DialogContent>
+
+                <DialogActions>
+                    <Button disabled={resettingPassword} onClick={() => setConfirmResetOpen(false)}>
+                        Abbrechen
+                    </Button>
+                    <Button
+                        color="warning"
+                        variant="contained"
+                        disabled={resettingPassword}
+                        onClick={handleResetStudentPassword}
+                        startIcon={
+                            resettingPassword
+                                ? <CircularProgress size={18} color="inherit"/>
+                                : <LockReset/>
+                        }>
+                        {resettingPassword ? "Wird zurückgesetzt..." : "Passwort zurücksetzen"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog open={generatedResetPassword !== null} disableEscapeKeyDown onClose={() => {}} fullWidth maxWidth="sm">
+                <DialogTitle>
+                    Neues Passwort erstellt
+                </DialogTitle>
+
+                <DialogContent>
+                    <Alert severity="success" sx={{mb: 3}}>
+                        Das Passwort wurde erfolgreich zurückgesetzt.
+                        Bitte speichern Sie das neue Passwort und geben
+                        Sie es dem Schüler bzw. der Schülerin weiter.
+                        <strong> Das Passwort kann später nicht erneut angezeigt werden.</strong>
+                    </Alert>
+                    <TextField
+                        fullWidth
+                        label="Neues Passwort"
+                        value={generatedResetPassword ?? ""}
+                        slotProps={{
+                            input: {
+                                readOnly: true,
+                            },
+                        }}
+                        sx={{mb: 2}}/>
+                    <Button
+                        variant="outlined"
+                        startIcon={<ContentCopy />}
+                        onClick={async () => {
+                            if (!generatedResetPassword) return;
+                            try {
+                                await navigator.clipboard.writeText(generatedResetPassword);
+                                setSnackbar({open: true, message: "Passwort kopiert.", severity: "success",});
+                            } catch {
+                                setSnackbar({open: true, message: "Passwort konnte nicht kopiert werden.", severity: "error",});
+                            }
+                        }}>
+                        Passwort kopieren
+                    </Button>
+                </DialogContent>
+
+                <DialogActions>
+                    <Button
+                        variant="contained"
+                        onClick={() => {
+                            setGeneratedResetPassword(null);
+                            setResetPasswordDialogOpen(false);
+                            setConfirmResetOpen(false);
+                            setSelectedStudentId("");
+                        }}>
+                        Schliessen
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </TeacherLayout>
     );
 };
