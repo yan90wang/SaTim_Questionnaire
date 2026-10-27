@@ -30,6 +30,8 @@ export interface StudentTestResult {
     correctAnswers: number;
     totalQuestions: number;
     finished: boolean;
+    openQuestions?: number;
+    skippedQuestions?: number;
 }
 
 export interface QuestionTestResult {

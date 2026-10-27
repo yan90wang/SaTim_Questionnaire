@@ -332,55 +332,25 @@ export const deleteClassAdmin = async (req: Request<{ teacherId: string; id: str
  * ADMIN
  * GET /api/admin/teacher/:teacherId/classes/tests
  */
-export const getClassTestsAdmin = async (
-    req: Request<{ teacherId: string }>,
-    res: Response
-) => {
+export const getClassTestsAdmin = async (req: Request<{ teacherId: string }>, res: Response) => {
     try {
         const userId = Number((req as any).user?.id);
         const teacherId = Number(req.params.teacherId);
-
         if (!userId) {
-            return res.status(401).json({
-                message: "Not authenticated",
-            });
+            return res.status(401).json({message: "Not authenticated",});
         }
-
         if (isNaN(teacherId)) {
-            return res.status(400).json({
-                message: "Invalid teacher id",
-            });
+            return res.status(400).json({message: "Invalid teacher id",});
         }
-
-        await ensureTeacherBelongsToUserTeam(
-            userId,
-            teacherId
-        );
-
-        const tests = await getClassTestsService(
-            teacherId
-        );
-
+        await ensureTeacherBelongsToUserTeam(userId, teacherId);
+        const tests = await getClassTestsService(teacherId);
         return res.status(200).json(tests);
-
     } catch (err) {
-        console.error(
-            "Admin get class tests error:",
-            err
-        );
-
-        if (
-            err instanceof Error &&
-            err.message === "Access denied"
-        ) {
-            return res.status(403).json({
-                message: "Access denied",
-            });
+        console.error("Admin get class tests error:", err);
+        if (err instanceof Error && err.message === "Access denied") {
+            return res.status(403).json({message: "Access denied",});
         }
-
-        return res.status(500).json({
-            message: "Server error",
-        });
+        return res.status(500).json({message: "Server error",});
     }
 };
 

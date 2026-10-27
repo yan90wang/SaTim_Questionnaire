@@ -31,7 +31,6 @@ const TestDetailsPage = () => {
             try {
                 setLoading(true);
                 const data = await getTestDetails(Number(testId), teacherId, isAdminView);
-                console.log(data)
                 setDetails(data);
             } catch (err) {
                 console.error(err);
@@ -170,7 +169,17 @@ const TestDetailsPage = () => {
                                                 sx={{textAlign: "left", p: 1.5,}}>
                                                 Ergebnis
                                             </Box>
+                                            {details.mode === "DESIGN" && (
+                                                <>
+                                                    <Box component="th" sx={{ textAlign: "center", p: 1.5 }}>
+                                                        Offen
+                                                    </Box>
 
+                                                    <Box component="th" sx={{ textAlign: "center", p: 1.5 }}>
+                                                        Übersprungen
+                                                    </Box>
+                                                </>
+                                            )}
                                             <Box
                                                 component="th"
                                                 sx={{textAlign: "right", p: 1.5,}}>
@@ -204,7 +213,27 @@ const TestDetailsPage = () => {
                                                         Aufgaben richtig
                                                     </Typography>
                                                 </Box>
+                                                {details.mode === "DESIGN" && (
+                                                    <>
+                                                        <Box component="td" sx={{ p: 1.5, textAlign: "center" }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label={student.openQuestions ?? 0}
+                                                                color={(student.openQuestions ?? 0) > 0 ? "warning" : "default"}
+                                                                variant="outlined"
+                                                            />
+                                                        </Box>
 
+                                                        <Box component="td" sx={{ p: 1.5, textAlign: "center" }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label={student.skippedQuestions ?? 0}
+                                                                color={(student.skippedQuestions ?? 0) > 0 ? "info" : "default"}
+                                                                variant="outlined"
+                                                            />
+                                                        </Box>
+                                                    </>
+                                                )}
                                                 <Box component="td" sx={{p: 1.5, textAlign: "right",}}>
                                                     <Chip
                                                         size="small"
