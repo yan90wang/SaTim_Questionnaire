@@ -107,7 +107,13 @@ const ClassPage = () => {
             try {
                 setLoadingSuS(true);
                 const studentData = await getStudents(Number(id), teacherId, isAdminView);
-                setStudents(studentData);
+                setStudents(
+                    [...studentData].sort((a, b) =>
+                        (a.email ?? "").localeCompare(b.email ?? "", "de-CH", {
+                            sensitivity: "base",
+                        })
+                    )
+                );
             } catch (err) {
                 console.error(err);
                 setSnackbar({
