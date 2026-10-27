@@ -21,7 +21,7 @@ import {
 import MainLayout from "../../layouts/MainLayout.tsx";
 import {
     assignSurveyToTeachers,
-    type Booklet,
+    type Booklet, downloadAdaptiveBinaryExcel,
     getAdaptiveQuestionDetailsExport,
     getQuestionDetailsByIds,
     getQuestionsByIds,
@@ -65,13 +65,14 @@ interface SurveyDetail {
     hasActiveInstance?: boolean;
     isTwoTier: boolean;
     teacherAssigned: boolean;
-    knowledgeSpaceFileUrl?: string | null;
-    probabilityDistributionFileUrl?: string | null;
     adaptiveThreshold?: number | null;
-    betaEtaFileUrl?: string | null;
     feedbackSurveyUrl?: string | null;
-    knowledgeSpaceBinary?: string | null;
-    probabilityDistributionBinary?: string | null;
+    hasKnowledgeSpace: boolean;
+    hasProbabilityDistribution: boolean;
+    hasBetaEta: boolean;
+    probabilityDistributionFileUrl?: string | null;
+    knowledgeSpaceFileUrl?: string | null;
+    betaEtaFileUrl?: string | null;
 }
 
 const statusLabels: Record<SurveyDetail["status"], string> = {
@@ -110,6 +111,7 @@ const SurveyUpdatePage = () => {
     const [savingFeedbackUrl, setSavingFeedbackUrl] = useState(false);
     const [assignmentWarningOpen, setAssignmentWarningOpen] = useState(false);
     const [assigningTeachers, setAssigningTeachers] = useState(false);
+    const [downloadingAdaptiveFiles, setDownloadingAdaptiveFiles] = useState(false);
     useEffect(() => {
         const fetchSurvey = async () => {
             if (!id) return;
@@ -134,13 +136,14 @@ const SurveyUpdatePage = () => {
                     hasActiveInstance: data.hasActiveInstance,
                     isTwoTier: data.isTwoTier,
                     teacherAssigned: data.teacherAssigned,
+                    adaptiveThreshold: data.adaptiveThreshold ?? null,
+                    feedbackSurveyUrl: data.feedbackSurveyUrl ?? null,
+                    hasKnowledgeSpace: data.hasKnowledgeSpace,
+                    hasProbabilityDistribution: data.hasProbabilityDistribution,
+                    hasBetaEta: data.hasBetaEta,
                     knowledgeSpaceFileUrl: data.knowledgeSpaceFileUrl ?? null,
                     probabilityDistributionFileUrl: data.probabilityDistributionFileUrl ?? null,
-                    adaptiveThreshold: data.adaptiveThreshold ?? null,
                     betaEtaFileUrl: data.betaEtaFileUrl ?? null,
-                    feedbackSurveyUrl: data.feedbackSurveyUrl ?? null,
-                    knowledgeSpaceBinary: data.knowledgeSpaceBinary ?? null,
-                    probabilityDistributionBinary: data.probabilityDistributionBinary ?? null
                 });
             } catch (err) {
                 console.error("Failed to fetch survey:", err);
@@ -432,31 +435,49 @@ const SurveyUpdatePage = () => {
         }
     };
     const handleDownloadAdaptiveFiles = async () => {
-        if (!survey?.probabilityDistributionFileUrl || !survey?.betaEtaFileUrl) {
-            return;
-        }
+        if (!survey) return;
         try {
+            setDownloadingAdaptiveFiles(true);
             const zip = new JSZip();
-            const [probabilityResponse, betaEtaResponse,] = await Promise.all([
-                fetch(survey.probabilityDistributionFileUrl),
-                fetch(survey.betaEtaFileUrl),
-            ]);
-
-            if (!probabilityResponse.ok || !betaEtaResponse.ok) {
-                throw new Error("Eine oder mehrere Dateien konnten nicht geladen werden.");
+            let knowledgeSpaceBlob: Blob;
+            if (survey.knowledgeSpaceFileUrl) {
+                const response = await fetch(survey.knowledgeSpaceFileUrl);
+                if (!response.ok) {
+                    throw new Error("Knowledge Space download failed");
+                }
+                knowledgeSpaceBlob = await response.blob();
+            } else {
+                knowledgeSpaceBlob = await downloadAdaptiveBinaryExcel(survey.id, "ks");
             }
-            const [probabilityBlob, betaEtaBlob,] = await Promise.all([
-                probabilityResponse.blob(),
-                betaEtaResponse.blob(),
-            ]);
-
+            zip.file("knowledge-space.xlsx", knowledgeSpaceBlob);
+            let probabilityBlob: Blob;
+            if (survey.probabilityDistributionFileUrl) {
+                const response = await fetch(survey.probabilityDistributionFileUrl);
+                if (!response.ok) {
+                    throw new Error("Probability download failed");
+                }
+                probabilityBlob = await response.blob();
+            } else {
+                probabilityBlob = await downloadAdaptiveBinaryExcel(survey.id, "probs");
+            }
             zip.file("probability-distribution.xlsx", probabilityBlob);
-            zip.file("beta-eta.xlsx", betaEtaBlob);
-            const zipBlob = await zip.generateAsync({type: "blob",});
+            if (!survey.betaEtaFileUrl) {
+                throw new Error("Beta/Eta file missing");
+            }
+            const betaEtaResponse = await fetch(survey.betaEtaFileUrl);
+            if (!betaEtaResponse.ok) {
+                throw new Error("Beta/Eta download failed");
+            }
+            zip.file("beta-eta.xlsx", await betaEtaResponse.blob());
+            const zipBlob = await zip.generateAsync({
+                type: "blob",
+            });
             saveAs(zipBlob, `${survey.title}_adaptive-Dateien.zip`);
         } catch (error) {
             console.error("Adaptive files download failed:", error);
             setSnackbar({open: true, message: "Adaptive Dateien konnten nicht heruntergeladen werden.", severity: "error",});
+        } finally {
+            setDownloadingAdaptiveFiles(false);
         }
     };
 
@@ -504,7 +525,7 @@ const SurveyUpdatePage = () => {
         handleSurveyAssignmentClick();
     };
 
-    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && (!!survey.knowledgeSpaceFileUrl || !!survey.knowledgeSpaceBinary) && (!!survey.probabilityDistributionFileUrl || !!survey.probabilityDistributionBinary) && !!survey.betaEtaFileUrl);
+    const isValidSurvey = (survey?.mode === "DESIGN" && booklets.length > 0) || (survey?.mode === "ADAPTIV" && survey.hasKnowledgeSpace && survey.hasProbabilityDistribution && survey.hasBetaEta && !!survey.adaptiveThreshold);
     if (loading) return <LinearProgress />;
     if (!survey) return <Typography>Survey not found</Typography>;
 
@@ -622,12 +643,12 @@ const SurveyUpdatePage = () => {
                                         setBetaEtaFile(null);
                                         setAdaptiveUploadDialogOpen(true);
                                     }}>
-                                    {(survey.knowledgeSpaceFileUrl || survey.knowledgeSpaceBinary) && survey.probabilityDistributionFileUrl && survey.betaEtaFileUrl ? "Adaptive Dateien ersetzen" : "Adaptive Dateien hochladen"}
+                                    {survey.hasKnowledgeSpace && survey.hasProbabilityDistribution && survey.betaEtaFileUrl ? "Adaptive Dateien ersetzen" : "Adaptive Dateien hochladen"}
                                 </Button>
-                                {(survey.knowledgeSpaceFileUrl || survey.knowledgeSpaceBinary) &&
-                                    survey.probabilityDistributionFileUrl &&
-                                    survey.betaEtaFileUrl && (
-                                        <Button variant="outlined" startIcon={<Download />} onClick={handleDownloadAdaptiveFiles}>
+                                {survey.hasKnowledgeSpace && survey.hasProbabilityDistribution && survey.betaEtaFileUrl && (
+                                        <Button variant="outlined" startIcon={downloadingAdaptiveFiles ? <CircularProgress size={18} color="inherit" /> : <Download />}
+                                                onClick={handleDownloadAdaptiveFiles}
+                                                disabled={downloadingAdaptiveFiles}>
                                             Adaptive Dateien herunterladen
                                         </Button>
                                     )}

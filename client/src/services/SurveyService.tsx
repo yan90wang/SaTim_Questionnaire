@@ -429,3 +429,18 @@ export async function getAdaptiveQuestionDetailsExport(surveyId: number, surveyT
 
     return await res.blob();
 }
+
+export const downloadAdaptiveBinaryExcel = async (surveyId: number, type: "ks" | "probs"): Promise<Blob> => {
+    const response = await fetch(
+        `${API_BASE}/api/survey/${surveyId}/adaptive-files/${type}/download`,
+        {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+        }
+    );
+    if (!response.ok) {
+        throw new Error("Adaptive Excel download failed");
+    }
+    return response.blob();
+};

@@ -7,6 +7,8 @@ import {supabase} from "../supabaseClient.js";
 import {Readable} from "node:stream";
 import {type ExportAnswer, questionAnswerInclude, writeSurveyExport} from "./helper/surveyExportHelper.js";
 import {binaryToProbs, probsToBinary} from "./quizService.js";
+import path from "path";
+import os from "os";
 
 /**
  * Interface for creating a new survey
@@ -167,11 +169,15 @@ export const getSurveyById = async (id: number) => {
     const now = new Date();
     const hasActiveInstance = survey.instances?.some(inst => new Date(inst.validFrom) <= now && now <= new Date(inst.validTo)) ?? false;
     const hasBooklet = (survey.booklet?.length ?? 0) > 0;
+    const {knowledgeSpaceBinary, knowledgeSpaceFileUrl, probabilityDistributionBinary, probabilityDistributionFileUrl, betaEtaFileUrl, ...surveyData} = survey;
     return {
         ...survey,
         hasActiveInstance,
         booklet: survey.booklet ?? [],
         hasBooklet,
+        hasKnowledgeSpace: !!(knowledgeSpaceFileUrl || knowledgeSpaceBinary),
+        hasProbabilityDistribution: !!(probabilityDistributionFileUrl || probabilityDistributionBinary),
+        hasBetaEta: !!betaEtaFileUrl,
     };
 };
 
@@ -1207,3 +1213,65 @@ async function validateKnowledgeSpaceFile(file: Express.Multer.File): Promise<{ 
         binaryKS,
     };
 }
+
+export const exportAdaptiveBinaryExcelService = async (surveyId: number, type: "ks" | "probs"): Promise<string> => {
+    const survey = await prisma.survey.findUnique({
+        where: { id: surveyId },
+        select: {
+            knowledgeSpaceBinary: true,
+            probabilityDistributionBinary: true,
+            ksNumberOfStates: true,
+            ksNumberOfItems: true,
+            ksQuestionIds: true,
+        },
+    });
+    if (!survey) {
+        throw new Error("Survey not found");
+    }
+    const filePath = path.join(os.tmpdir(), `adaptive_${type}_${surveyId}.xlsx`);
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({filename: filePath, useStyles: false, useSharedStrings: false,});
+    if (type === "ks") {
+        if (!survey.knowledgeSpaceBinary) {
+            throw new Error("Knowledge Space binary not found");
+        }
+        const binary = Buffer.from(survey.knowledgeSpaceBinary);
+        const numberOfStates = survey.ksNumberOfStates;
+        const numberOfItems = survey.ksNumberOfItems;
+        const questionIds = survey.ksQuestionIds;
+        if (numberOfStates == null || numberOfItems == null || questionIds.length !== numberOfItems) {
+            throw new Error("Invalid Knowledge Space metadata");
+        }
+        const wordsPerState = Math.ceil(numberOfItems / 32);
+        const bytesPerState = wordsPerState * 4;
+        if (binary.length !== numberOfStates * bytesPerState) {
+            throw new Error("Invalid Knowledge Space binary size");
+        }
+        const worksheet = workbook.addWorksheet("KnowledgeSpace");
+        worksheet.addRow(questionIds).commit();
+        for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
+            const row: number[] = [];
+            for (let itemIndex = 0; itemIndex < numberOfItems; itemIndex++) {
+                const wordIndex = Math.floor(itemIndex / 32);
+                const bitIndex = itemIndex % 32;
+                const offset = stateIndex * bytesPerState + wordIndex * 4;
+                const word = binary.readUInt32LE(offset);
+                row.push((word >>> bitIndex) & 1);
+            }
+            worksheet.addRow(row).commit();
+        }
+        worksheet.commit();
+    } else {
+        if (!survey.probabilityDistributionBinary) {
+            throw new Error("Probability binary not found");
+        }
+        const probabilities = binaryToProbs(survey.probabilityDistributionBinary);
+        const worksheet = workbook.addWorksheet("Probabilities");
+        worksheet.addRow(["ID", "Probability"]).commit();
+        probabilities.forEach((probability, index) => {
+            worksheet.addRow([index + 1, probability]).commit();
+        });
+        worksheet.commit();
+    }
+    await workbook.commit();
+    return filePath;
+};

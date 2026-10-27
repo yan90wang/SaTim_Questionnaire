@@ -3,7 +3,7 @@ import {
     createSurvey,
     createSurveyInstance,
     deleteSurveyById,
-    deleteSurveyInstanceById, getAdaptiveQuestionDetailsExportService,
+    deleteSurveyInstanceById, exportAdaptiveBinaryExcelService, getAdaptiveQuestionDetailsExportService,
     getAllSurveys,
     getBookletsBySurveyId,
     getQuestionDetailsExport,
@@ -17,7 +17,8 @@ import {
     updateSurveyInstanceById,
     uploadAdaptiveFilesService,
 } from "../services/surveyService.js";
-import fs from "fs";
+import fs from "node:fs";
+import { unlink } from "node:fs/promises";
 /**
  * Interface for creating a new survey
  */
@@ -409,5 +410,42 @@ export const uploadAdaptiveFiles = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("Adaptive files upload error:", error);
         return res.status(400).json({message: error?.message ?? "Adaptive Dateien konnten nicht verarbeitet werden.",});
+    }
+};
+
+export const downloadAdaptiveBinaryExcel = async (req: Request, res: Response) => {
+    const surveyId = Number(req.params.surveyId);
+    const type = req.params.type;
+    if (!Number.isInteger(surveyId) || surveyId <= 0) {
+        res.status(400).json({ message: "Invalid survey ID" });
+        return;
+    }
+    if (type !== "ks" && type !== "probs") {
+        res.status(400).json({ message: "Invalid export type" });
+        return;
+    }
+    let filePath: string | undefined;
+    try {
+        filePath = await exportAdaptiveBinaryExcelService(surveyId, type);
+        const filename = type === "ks" ? "knowledge-space.xlsx" : "probability-distribution.xlsx";
+        res.download(filePath, filename, async (error) => {
+            if (filePath) {
+                await unlink(filePath).catch(console.error);
+            }
+
+            if (error) {
+                console.error("Adaptive Excel download failed:", error);
+            }
+        });
+    } catch (error) {
+        if (filePath) {
+            await unlink(filePath).catch(console.error);
+        }
+        console.error(error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                message: "Excel konnte nicht erstellt werden.",
+            });
+        }
     }
 };

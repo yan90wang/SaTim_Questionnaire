@@ -14,7 +14,10 @@ import {
     getSurveyExportHandler,
     getQuestionsByIdsHandler,
     getQuestionDetailsByIdsHandler,
-    setSurveyTeacherAssignableHandler, uploadAdaptiveFiles, getAdaptiveQuestionDetailsExportHandler,
+    setSurveyTeacherAssignableHandler,
+    uploadAdaptiveFiles,
+    getAdaptiveQuestionDetailsExportHandler,
+    downloadAdaptiveBinaryExcel,
 } from "../controllers/surveyController.js";
 import { authenticateToken } from "../auth/authenticate.js";
 import multer from "multer";
@@ -36,7 +39,7 @@ router.get("/:surveyId/instances", getSurveyInstancesHandler);
 router.post("/:surveyId/adaptive-files", upload.fields([{ name: "knowledgeSpace", maxCount: 1 }, { name: "probabilityDistribution", maxCount: 1 }, { name: "betaEta", maxCount: 1 },]), uploadAdaptiveFiles);
 router.put("/instance/:id", updateSurveyInstanceHandler);
 router.delete("/instance/:id", deleteSurveyInstanceHandler);
-
+router.get("/:surveyId/adaptive-files/:type/download", downloadAdaptiveBinaryExcel);
 router.get("/:id/booklets", getSurveyBookletsHandler);
 router.post("/:id/export", getSurveyExportHandler);
 router.post("/teacher-assign/:surveyId", setSurveyTeacherAssignableHandler);
