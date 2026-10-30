@@ -25,6 +25,7 @@ export interface Quiz {
     feedback: {[key: string]: string};
     isAdaptive: boolean;
     feedbackSurveyUrl?: string | null;
+    studentEmail?: string | null;
 }
 
 export interface LineEquationAnswer {

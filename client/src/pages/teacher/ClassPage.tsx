@@ -329,22 +329,18 @@ const ClassPage = () => {
                                 {students.map((student) => (
                                     <Card key={student.id} variant="outlined">
                                         <CardContent>
-
-                                            <Typography variant="h6">
-                                                {student.first_name}{" "}
-                                                {student.last_name}
-                                            </Typography>
-
-                                            <Typography color="text.secondary">
-                                                Geburtstag:{" "}
-                                                {new Date(student.birthday).toLocaleDateString()}
-                                            </Typography>
-
                                             {student.email && (
                                                 <Typography color="text.secondary">
                                                     Benutzername:{" "}{student.email}
                                                 </Typography>
                                             )}
+                                            <Typography color="text.secondary">
+                                                Geburtstag:{" "}
+                                                {new Date(student.birthday).toLocaleDateString()}
+                                            </Typography>
+                                            <Typography color="text.secondary">
+                                                Id:{" "}{student.id}
+                                            </Typography>
 
                                         </CardContent>
                                     </Card>

@@ -31,6 +31,7 @@ export interface NextQuestion {
     solved: boolean;
     isAdaptive: boolean;
     feedbackSurveyUrl?: string | null;
+    studentEmail?: string | null;
 }
 
 export async function getQuiz(instanceId: string, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> {
@@ -45,11 +46,19 @@ export async function getQuiz(instanceId: string, userId: string, questionId?: n
     const survey = await prisma.survey.findUnique({
         where: {id: instance.surveyId},
     });
+    const student = await prisma.student.findUnique({
+        where: { id: Number(userId) },
+        select: { email: true },
+    });
     if (!survey) throw new Error("Test nicht gefunden.");
-    if (survey.mode === "ADAPTIV") {
-        return getAdaptiveQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam);
-    }
-    return getDesignQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam);
+    const quiz = survey.mode === "ADAPTIV"
+        ? await getAdaptiveQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam)
+        : await getDesignQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam);
+
+    return {
+        ...quiz,
+        studentEmail: student?.email ?? null,
+    };
 }
 
 const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId: string, questionId?: number, nextQuestionId?: number, freeParam?: string): Promise<NextQuestion> => {

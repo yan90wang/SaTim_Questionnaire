@@ -158,15 +158,14 @@ const TestDetailsPage = () => {
                                         component="thead"
                                         sx={{borderBottom: "1px solid", borderColor: "divider",}}>
                                         <Box component="tr">
-                                            <Box
-                                                component="th"
-                                                sx={{textAlign: "left", p: 1.5,}}>
+                                            <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
+                                                Id
+                                            </Box>
+                                            <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
                                                 Schüler
                                             </Box>
 
-                                            <Box
-                                                component="th"
-                                                sx={{textAlign: "left", p: 1.5,}}>
+                                            <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
                                                 Ergebnis
                                             </Box>
                                             {details.mode === "DESIGN" && (
@@ -180,9 +179,7 @@ const TestDetailsPage = () => {
                                                     </Box>
                                                 </>
                                             )}
-                                            <Box
-                                                component="th"
-                                                sx={{textAlign: "right", p: 1.5,}}>
+                                            <Box component="th" sx={{textAlign: "right", p: 1.5,}}>
                                                 Status
                                             </Box>
                                         </Box>
@@ -190,16 +187,14 @@ const TestDetailsPage = () => {
 
                                     <Box component="tbody">
                                         {details.students.map((student) => (
-                                            <Box
-                                                component="tr"
-                                                key={student.studentId}
-                                                sx={{
-                                                    borderBottom: "1px solid",
-                                                    borderColor: "divider",
-                                                    "&:last-child": {
-                                                        borderBottom: "none",
-                                                    },
-                                                }}>
+                                            <Box component="tr" key={student.studentId}
+                                                sx={{borderBottom: "1px solid", borderColor: "divider", "&:last-child": {borderBottom: "none",},}}>
+                                                <Box component="td" sx={{p: 1.5}}>
+                                                    <Typography fontWeight={500}>
+                                                        {student.studentId}
+                                                    </Typography>
+                                                </Box>
+
                                                 <Box component="td" sx={{p: 1.5}}>
                                                     <Typography fontWeight={500}>
                                                         {student.studentLogin}

@@ -315,7 +315,7 @@ export default function QuizPage() {
             <AppBar position="static" sx={{ width: '100%' }}>
                 <Toolbar sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 1, px: 2 }}>
                     {!quiz?.isAdaptive && (
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 3 }}>
+                            <Box sx={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 1, flex: 1, minWidth: 0, py: 1,}}>
                         {questionIds.map((qid, index) => {
                             const isCurrent = quiz?.question?.id === qid;
                             const isAnswered = quiz?.answeredQuestionIds?.includes(qid);
@@ -341,13 +341,11 @@ export default function QuizPage() {
                             );
                         })}
                     </Box>)}
-                    {quiz?.isAdaptive ? (
-                        <Typography variant="body2">Adaptiver Test</Typography>) : (
-                        <Typography variant="body2">AufgabenId: {quiz?.question?.id}</Typography>
-                    )}
+                    {quiz?.isAdaptive && (<Typography variant="body2">Adaptiver Test</Typography>)}
                     <Box sx={{ color: "white", ml: 2 }}>
                         <Stack spacing={0.5}>
                             <Typography variant="body2">UserId: {internalUserId ?? userId}</Typography>
+                            {quiz?.studentEmail && (<Typography variant="body2">Benutzername: {quiz?.studentEmail}</Typography>)}
                             <Typography variant="body2">AufgabenId: {quiz?.question?.id}</Typography>
                         </Stack>
                     </Box>
