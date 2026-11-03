@@ -46,10 +46,8 @@ export async function getQuiz(instanceId: string, userId: string, questionId?: n
     const survey = await prisma.survey.findUnique({
         where: {id: instance.surveyId},
     });
-    const student = await prisma.student.findUnique({
-        where: { id: Number(userId) },
-        select: { email: true },
-    });
+    const studentId = Number(userId);
+    const student = Number.isSafeInteger(studentId) && studentId > 0 ? await prisma.student.findUnique({where: { id: studentId }, select: { email: true },}).catch(() => null) : null;
     if (!survey) throw new Error("Test nicht gefunden.");
     const quiz = survey.mode === "ADAPTIV"
         ? await getAdaptiveQuiz(survey, instance, userId, questionId, nextQuestionId, freeParam)
