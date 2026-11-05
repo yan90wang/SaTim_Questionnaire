@@ -3,6 +3,7 @@ import {getUserTeam} from "./teamServices.js";
 import {evaluateAnswersService, type UserAnswerInput} from "./solverService.js";
 import crypto from "node:crypto";
 import bcrypt from "bcrypt";
+import {getSoSciCompletionStatus} from "./sosciService.js";
 
 export const getClassesService = async (teacherId: number) => {
     return prisma.schoolClass.findMany({
@@ -397,6 +398,25 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
     if (!test) {throw new Error("TEST_NOT_FOUND");}
     if (test.schoolClass.teacherId !== teacherId) {throw new Error("FORBIDDEN");}
     const students = test.schoolClass.student;
+    const studentIds = students.map(student => student.id);
+    let feedbackStatuses: Record<number, boolean> | null = null;
+    if (test.survey.feedbackSurveyUrl && studentIds.length > 0) {
+        try {
+            const feedbackUrl = new URL(test.survey.feedbackSurveyUrl);
+            const projectName = feedbackUrl.pathname.split("/").filter(Boolean)[0];
+            if (projectName) {
+                feedbackStatuses = await getSoSciCompletionStatus(studentIds, projectName);
+            }
+        } catch (error) {
+            console.error("SoSci feedback status could not be loaded:", error);
+        }
+    }
+
+    const getFeedbackCompleted = (studentId: number): boolean | null => {
+        if (!feedbackStatuses) return null;
+        return feedbackStatuses[studentId] ?? false;
+    };
+
     const surveyInstances = await prisma.surveyInstance.findMany({
         where: {
             surveyId: test.surveyId,
@@ -434,6 +454,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                     correctAnswers: 0,
                     totalQuestions: 0,
                     finished: false,
+                    feedbackCompleted: false,
                 };
             }
             let correctAnswers = 0;
@@ -460,6 +481,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                 totalQuestions: answer?.questionIds.length ?? 0,
                 openQuestions,
                 skippedQuestions,
+                feedbackCompleted: getFeedbackCompleted(student.id),
                 finished: answer?.quizFinished ?? false,
             };
         }));
@@ -491,6 +513,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
             mode: test.survey.mode,
             students: studentResults,
             questionResults,
+            hasFeedback: !!test.survey.feedbackSurveyUrl,
         };
     } else {
     const answers = await prisma.adaptiveAnswer.findMany({
@@ -516,6 +539,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                     studentLogin: student.email ?? student.externalId ?? `Schüler ${student.id}`,
                     correctAnswers: 0,
                     totalQuestions: 0,
+                    feedbackCompleted: false,
                     finished: false,
                 };
             }
@@ -529,6 +553,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                 studentLogin: student.email ?? student.externalId ?? `Schüler ${student.id}`,
                 correctAnswers,
                 totalQuestions: answer.questionIds.length,
+                feedbackCompleted: getFeedbackCompleted(student.id),
                 finished: answer.quizFinished,
             };
         }));
@@ -539,6 +564,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
         className: test.schoolClass.name,
         mode: test.survey.mode,
         students: studentResults,
+        hasFeedback: !!test.survey.feedbackSurveyUrl,
         questionResults: [],
     };}
 };

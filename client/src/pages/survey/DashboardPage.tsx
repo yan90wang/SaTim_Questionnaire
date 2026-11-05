@@ -60,7 +60,7 @@ const DashboardPage = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [snackbar, setSnackbar] = useState({open: false, message: "", severity: "success" as "success" | "error",});
     const [newSurvey, setNewSurvey] = useState<{ title: string; description: string; fromDate: string; toDate: string; mode: "design" | "adaptiv"; isTwoTier: boolean }>({title: "", description: "", fromDate: "", toDate: "", mode: "design", isTwoTier: false});
-
+    const [searchText, setSearchText] = useState("");
     useEffect(() => {
         const loadTeam = async () => {
             try {
@@ -260,6 +260,15 @@ const DashboardPage = () => {
                             </MenuItem>
                         </Select>
                     </FormControl>
+                    <Box display="flex" gap={2} mb={2} flexWrap="wrap">
+                        <TextField
+                            size="small"
+                            label="Erhebung suchen"
+                            placeholder="Titel, Beschreibung oder ID..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            sx={{ minWidth: 280 }}/>
+                    </Box>
                 </Box>
                 <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
                     <DialogTitle>Erhebung erstellen</DialogTitle>
@@ -312,11 +321,13 @@ const DashboardPage = () => {
                 ) : (
                     <Grid container spacing={3}>
                         {surveys.filter((s) => {
-                        const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
-                        const matchesActiveInstance = activeInstanceFilter === "ALL" || (activeInstanceFilter === "ACTIVE" && s.hasActiveInstance === true) || (activeInstanceFilter === "INACTIVE" && !s.hasActiveInstance);
-                        const matchesTeacherAssigned = teacherAssignedFilter === "ALL" || s.teacherAssigned;
-                        return matchesStatus && matchesActiveInstance && matchesTeacherAssigned;
-                    })
+                                    const search = searchText.trim().toLowerCase();
+                                    const matchesSearch = !search || s.title.toLowerCase().includes(search) || (s.description ?? "").toLowerCase().includes(search) || s.id.toString().includes(search);
+                                    const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
+                                    const matchesActiveInstance = activeInstanceFilter === "ALL" || (activeInstanceFilter === "ACTIVE" && s.hasActiveInstance === true) || (activeInstanceFilter === "INACTIVE" && !s.hasActiveInstance);
+                                    const matchesTeacherAssigned = teacherAssignedFilter === "ALL" || s.teacherAssigned;
+                                    return (matchesSearch && matchesStatus && matchesActiveInstance && matchesTeacherAssigned);
+                                })
                         .map((survey) => (                            //@ts-ignore
                             <Grid item key={survey.id} sx={{ width: 350, flexGrow: 0 }}>
                                 <Card sx={{

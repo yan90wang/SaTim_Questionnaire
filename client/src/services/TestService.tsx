@@ -32,6 +32,7 @@ export interface StudentTestResult {
     finished: boolean;
     openQuestions?: number;
     skippedQuestions?: number;
+    feedbackCompleted?: boolean | null;
 }
 
 export interface QuestionTestResult {
@@ -45,6 +46,7 @@ export interface TestDetails {
     description?: string | null;
     className: string;
     mode: "DESIGN" | "ADAPTIV";
+    hasFeedback?: boolean;
     students: StudentTestResult[];
     questionResults: QuestionTestResult[];
 }

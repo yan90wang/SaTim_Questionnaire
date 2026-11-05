@@ -168,6 +168,12 @@ const TestDetailsPage = () => {
                                             <Box component="th" sx={{textAlign: "left", p: 1.5,}}>
                                                 Ergebnis
                                             </Box>
+
+                                            {details.hasFeedback && (
+                                            <Box component="th" sx={{textAlign: "left", p: 1.5}}>
+                                                Feedback
+                                            </Box>)}
+
                                             {details.mode === "DESIGN" && (
                                                 <>
                                                     <Box component="th" sx={{ textAlign: "center", p: 1.5 }}>
@@ -208,6 +214,17 @@ const TestDetailsPage = () => {
                                                         Aufgaben richtig
                                                     </Typography>
                                                 </Box>
+
+                                                {details.hasFeedback && (
+                                                    <Box component="td" sx={{p: 1.5}}>
+                                                    <Chip
+                                                        size="small"
+                                                        label={student.feedbackCompleted ? "Abgeschlossen" : "Offen"}
+                                                        color={student.feedbackCompleted === true ? "success" : "default"}
+                                                        variant="outlined"
+                                                    />
+                                                </Box>)}
+
                                                 {details.mode === "DESIGN" && (
                                                     <>
                                                         <Box component="td" sx={{ p: 1.5, textAlign: "center" }}>
