@@ -10,7 +10,7 @@ export interface Teacher {
     school_name: string;
     school_address: string;
     canton: string;
-    activeSurveys: {
+    activeSurveys?: {
         surveyId: number;
         title: string;
         classId: number;
