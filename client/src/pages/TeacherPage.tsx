@@ -54,14 +54,6 @@ const TeacherPage = () => {
         fetchTeachers();
     }, []);
 
-    if (isLoading) {
-        return (
-            <MainLayout>
-                <Typography>Loading...</Typography>
-            </MainLayout>
-        );
-    }
-
     return (
         <MainLayout>
             <Box sx={{minHeight: "100vh", py: 3, px: 2, display: "flex", flexDirection: "column", mt: 6,}}>
