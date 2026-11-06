@@ -7,7 +7,7 @@ import {
     Card,
     CardContent,
     CardHeader,
-    Chip,
+    Chip, CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -65,6 +65,12 @@ const TeacherPage = () => {
     return (
         <MainLayout>
             <Box sx={{minHeight: "100vh", py: 3, px: 2, display: "flex", flexDirection: "column", mt: 6,}}>
+                {(isLoading) && (
+                    <Box sx={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", bgcolor: "rgba(255,255,255,0.6)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center",}}>
+                        <CircularProgress size={60} />
+                    </Box>
+                )}
+
                 <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{vertical: "bottom", horizontal: "center",}}>
                     <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar({ ...snackbar, open: false })}>
                         {snackbar.message}
