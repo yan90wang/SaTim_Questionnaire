@@ -104,8 +104,8 @@ const TeacherPage = () => {
                                             <Box sx={{display: "flex", alignItems: "center", gap: 2}}>
                                                 <Chip
                                                     size="small"
-                                                    label={`${teacher.activeSurveys.length} aktive Tests`}
-                                                    color={teacher.activeSurveys.length > 0 ? "success" : "default"}
+                                                    label={`${teacher.activeSurveys?.length} aktive Tests`}
+                                                    color={!!teacher.activeSurveys?.length && teacher.activeSurveys?.length > 0 ? "success" : "default"}
                                                     variant="outlined"
                                                 />
                                                 <Button variant="contained" onClick={() => navigate(`/admin/teacher/${teacher.id}/classes`)}>Lehrpersonenansicht öffnen</Button>
@@ -114,13 +114,13 @@ const TeacherPage = () => {
                                         <Divider sx={{my: 2}}/>
                                         <Box sx={{display: "flex", flexDirection: "column", gap: 0}}>
                                             <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                                                Aktive Tests ({teacher.activeSurveys.length})
+                                                Aktive Tests ({teacher.activeSurveys?.length})
                                             </Typography>
-                                            {teacher.activeSurveys.length === 0 ? (
+                                            {teacher.activeSurveys?.length === 0 ? (
                                                 <Typography variant="body2" color="text.secondary">
                                                     Keine aktiven Tests vorhanden.
                                                 </Typography>) : (
-                                                teacher.activeSurveys.map(survey => (
+                                                teacher.activeSurveys?.map(survey => (
                                                     <Box key={survey.surveyId}
                                                         sx={{display: "flex", justifyContent: "space-between", alignItems: "center", py: 1, borderBottom: "1px solid", borderColor: "divider",}}>
                                                         <Box>
