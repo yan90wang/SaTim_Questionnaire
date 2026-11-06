@@ -7,10 +7,11 @@ import {
     Card,
     CardContent,
     CardHeader,
+    Chip,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
+    DialogTitle, Divider,
     Snackbar,
     TextField,
     Typography,
@@ -86,25 +87,58 @@ const TeacherPage = () => {
                         {teachers.length > 0 ? (
                             teachers.map((teacher) => (
                                 <Card key={teacher.id} variant="outlined">
-                                    <CardContent sx={{display: "flex", justifyContent: "space-between", alignItems: "center",}}>
-                                        <Box>
-                                            <Typography variant="subtitle1">
-                                                {teacher.first_name} {teacher.last_name}
-                                            </Typography>
+                                    <CardContent sx={{ display: "flex", flexDirection: "column", backgroundColor: "#f5f5f5", width: "100%"}}>
+                                        <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "left", flexWrap: "wrap", gap: 2}}>
+                                            <Box>
+                                                <Typography variant="subtitle1" fontWeight={600}>
+                                                    {teacher.first_name} {teacher.last_name}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {teacher.email}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {teacher.school_name}
+                                                </Typography>
+                                            </Box>
 
-                                            <Typography variant="body2" color="text.secondary">
-                                                {teacher.email}
-                                            </Typography>
-
-                                            <Typography variant="body2" color="text.secondary">
-                                                {teacher.school_name}
-                                            </Typography>
+                                            <Box sx={{display: "flex", alignItems: "center", gap: 2}}>
+                                                <Chip
+                                                    size="small"
+                                                    label={`${teacher.activeSurveys.length} aktive Tests`}
+                                                    color={teacher.activeSurveys.length > 0 ? "success" : "default"}
+                                                    variant="outlined"
+                                                />
+                                                <Button variant="contained" onClick={() => navigate(`/admin/teacher/${teacher.id}/classes`)}>Lehrpersonenansicht öffnen</Button>
+                                            </Box>
                                         </Box>
+                                        <Divider sx={{my: 2}}/>
+                                        <Box sx={{display: "flex", flexDirection: "column", gap: 0}}>
+                                            <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                                                Aktive Tests ({teacher.activeSurveys.length})
+                                            </Typography>
+                                            {teacher.activeSurveys.length === 0 ? (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Keine aktiven Tests vorhanden.
+                                                </Typography>) : (
+                                                teacher.activeSurveys.map(survey => (
+                                                    <Box key={survey.surveyId}
+                                                        sx={{display: "flex", justifyContent: "space-between", alignItems: "center", py: 1, borderBottom: "1px solid", borderColor: "divider",}}>
+                                                        <Box>
+                                                            <Typography variant="body2" fontWeight={600}>
+                                                                {survey.title}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                Klasse: {survey.className}
+                                                            </Typography>
+                                                        </Box>
 
-                                        <Button variant="contained"
-                                            onClick={() => navigate(`/admin/teacher/${teacher.id}/classes`)}>
-                                            Lehrpersonenansicht öffnen
-                                        </Button>
+                                                        <Typography variant="body2">
+                                                            {survey.finishedStudents} / {survey.totalStudents} abgeschlossen
+                                                        </Typography>
+                                                    </Box>
+                                                ))
+                                            )}
+                                        </Box>
                                     </CardContent>
                                 </Card>
                             ))

@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import {getUserTeam} from "./teamServices.js";
 import {SwissCanton} from "@prisma/client";
 import {randomBytes} from "node:crypto";
+import {getClassTestsService} from "./schoolClassService.js";
 
 const saltRounds = 10;
 
@@ -31,7 +32,7 @@ export const getTeachersService = async (loggedInUserId: number) => {
     if (!user || user.team_id === null) {
         throw new Error("USER_OR_TEAM_NOT_FOUND");
     }
-    return prisma.teacher.findMany({
+    const teachers = await prisma.teacher.findMany({
         where: {
             teamId: user.team_id,
         },
@@ -41,6 +42,7 @@ export const getTeachersService = async (loggedInUserId: number) => {
             last_name: true,
             email: true,
             school_name: true,
+            canton: true,
             school_address: true,
             createdAt: true,
         },
@@ -48,6 +50,26 @@ export const getTeachersService = async (loggedInUserId: number) => {
             last_name: "asc",
         },
     });
+    return Promise.all(teachers.map(async (teacher) => {
+            const tests = await getClassTestsService(teacher.id);
+            const activeSurveys = tests
+                .filter(test => test.active)
+                .map(test => ({
+                    surveyId: test.surveyId,
+                    title: test.title,
+                    classId: test.classId,
+                    className: test.className,
+                    finishedStudents: test.finishedStudents,
+                    totalStudents: test.totalStudents,
+                }));
+
+            return {
+                ...teacher,
+                canton: teacher.canton ?? "",
+                activeSurveys,
+            };
+        })
+    );
 };
 
 export const registerTeacherService = async ({firstName, lastName, email, password, schoolName, schoolAddress, userId, canton, privacyAccepted}: RegisterTeacherInput) => {
@@ -194,7 +216,7 @@ const generateStudentEmail = async (): Promise<string> => {
         if (!existingStudent) {
             return username;
         }
-};}
+}}
 
 interface UpdateTeacherInput {
     first_name: string;
