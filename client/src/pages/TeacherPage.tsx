@@ -12,6 +12,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle, Divider,
+    Grid,
     Snackbar,
     TextField,
     Typography,
@@ -110,33 +111,56 @@ const TeacherPage = () => {
                                             </Box>
                                         </Box>
                                         <Divider sx={{my: 2}}/>
-                                        <Box sx={{display: "flex", flexDirection: "column", gap: 0}}>
-                                            <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                                                Aktive Tests ({teacher.activeSurveys?.length})
-                                            </Typography>
-                                            {teacher.activeSurveys?.length === 0 ? (
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Keine aktiven Tests vorhanden.
-                                                </Typography>) : (
-                                                teacher.activeSurveys?.map(survey => (
-                                                    <Box key={survey.surveyId}
-                                                        sx={{display: "flex", justifyContent: "space-between", alignItems: "center", py: 1, borderBottom: "1px solid", borderColor: "divider",}}>
-                                                        <Box>
-                                                            <Typography variant="body2" fontWeight={600}>
-                                                                {survey.title}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                Klasse: {survey.className}
-                                                            </Typography>
-                                                        </Box>
 
-                                                        <Typography variant="body2">
-                                                            {survey.finishedStudents} / {survey.totalStudents} abgeschlossen
+                                        <Grid container spacing={3}>
+                                            {[
+                                                {
+                                                    title: "Aktive Tests",
+                                                    surveys: teacher.activeSurveys ?? [],
+                                                    color: "success.main",
+                                                },
+                                                {
+                                                    title: "Inaktive Tests",
+                                                    surveys: teacher.inactiveSurveys ?? [],
+                                                    color: "text.secondary",
+                                                },
+                                            ].map((section) => (
+                                                <Grid size={{xs: 12, md: 6}} key={section.title}>                                                    <Box sx={{p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.paper", height: "100%",}}>
+                                                        <Typography variant="subtitle2" fontWeight={600} mb={2} sx={{color: section.color}}>
+                                                            {section.title} ({section.surveys.length})
                                                         </Typography>
+
+                                                        {section.surveys.length === 0 ? (
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                Keine {section.title.toLowerCase()} vorhanden.
+                                                            </Typography>) : (
+                                                            section.surveys.map((survey) => (
+                                                                <Box key={`${survey.surveyId}-${survey.classId}`} sx={{display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, py: 1, borderBottom: "1px solid", borderColor: "divider", "&:last-child": {borderBottom: "none",},}}>
+                                                                    <Box sx={{minWidth: 0}}>
+                                                                        <Typography variant="body2" fontWeight={600}>
+                                                                            {survey.title}
+                                                                        </Typography>
+
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            Klasse: {survey.className}
+                                                                        </Typography>
+                                                                    </Box>
+
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{whiteSpace: "nowrap", flexShrink: 0,}}>
+                                                                        {survey.finishedStudents} / {survey.totalStudents}
+                                                                        <Typography component="span" variant="caption" color="text.secondary" sx={{ml: 0.5}}>
+                                                                            abgeschlossen
+                                                                        </Typography>
+                                                                    </Typography>
+                                                                </Box>
+                                                            ))
+                                                        )}
                                                     </Box>
-                                                ))
-                                            )}
-                                        </Box>
+                                                </Grid>
+                                            ))}
+                                        </Grid>
                                     </CardContent>
                                 </Card>
                             ))

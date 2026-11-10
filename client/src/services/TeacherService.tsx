@@ -18,6 +18,14 @@ export interface Teacher {
         finishedStudents: number;
         totalStudents: number;
     }[];
+    inactiveSurveys?: {
+        surveyId: number;
+        title: string;
+        classId: number;
+        className: string;
+        finishedStudents: number;
+        totalStudents: number;
+    }[];
 }
 
 export interface RegisterTeacherRequest {

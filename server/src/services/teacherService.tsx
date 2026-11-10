@@ -62,11 +62,22 @@ export const getTeachersService = async (loggedInUserId: number) => {
                     finishedStudents: test.finishedStudents,
                     totalStudents: test.totalStudents,
                 }));
+        const inactiveSurveys = tests
+            .filter(test => !test.active)
+            .map(test => ({
+                surveyId: test.surveyId,
+                title: test.title,
+                classId: test.classId,
+                className: test.className,
+                finishedStudents: test.finishedStudents,
+                totalStudents: test.totalStudents,
+            }));
 
             return {
                 ...teacher,
                 canton: teacher.canton ?? "",
                 activeSurveys,
+                inactiveSurveys
             };
         })
     );
