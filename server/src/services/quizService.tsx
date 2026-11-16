@@ -4,6 +4,7 @@ import type {survey, surveyInstance} from "@prisma/client";
 import * as XLSX from "xlsx";
 import {evaluateAnswersService} from "./solverService.js";
 import {bayesianUpdate, bayesianUpdateBinary, halfsplitBinary, halfsplitQuestion} from "./adaptiveKSTService.js";
+import {gunzipSync, gzipSync} from "node:zlib";
 
 export interface QuizQuestion {
     id: number;
@@ -935,8 +936,6 @@ async function fetchProbabilityDistribution(probabilityDistributionFileUrl: stri
     return probabilities.map(probability => probability / sum);
 }
 
-
-
 async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Promise<{ beta: number[]; eta: number[]; }> {
     const response = await fetch(betaEtaFileUrl);
 
@@ -996,38 +995,27 @@ async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Prom
     };
 }
 
-
 export function binaryToProbs(binary: Uint8Array): number[] {
-    if (binary.byteLength % 8 !== 0) {
+    const decompressed = gunzipSync(binary);
+    if (decompressed.byteLength % 8 !== 0) {
         throw new Error("INVALID_PROBABILITY_BINARY_SIZE");
     }
-
-    const view = new DataView(
-        binary.buffer,
-        binary.byteOffset,
-        binary.byteLength
-    );
-
-    const probabilities = new Array<number>(binary.byteLength / 8);
-
+    const view = new DataView(decompressed.buffer, decompressed.byteOffset, decompressed.byteLength);
+    const probabilities = new Array<number>(decompressed.byteLength / 8);
     for (let i = 0; i < probabilities.length; i++) {
         probabilities[i] = view.getFloat64(i * 8, true);
     }
-
     return probabilities;
 }
 
-export function probsToBinary(
-    probs: number[]
-): Uint8Array<ArrayBuffer> {
+export function probsToBinary(probs: number[]): Uint8Array<ArrayBuffer> {
     const buffer = new ArrayBuffer(probs.length * 8);
     const view = new DataView(buffer);
-
     for (let i = 0; i < probs.length; i++) {
         view.setFloat64(i * 8, probs[i]!, true);
     }
-
-    return new Uint8Array(buffer);
+    const compressed = gzipSync(new Uint8Array(buffer), {level: 6,});
+    return Uint8Array.from(compressed);
 }
 
 function getAdaptiveProbabilities(adaptiveAnswer: { adaptiveProbsBinary: Uint8Array | null; adaptiveProbs: Prisma.JsonValue | null; }): number[] {
