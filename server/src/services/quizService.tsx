@@ -1003,15 +1003,21 @@ async function fetchBetaEta(betaEtaFileUrl: string, itemColumns: number[]): Prom
 }
 
 export function binaryToProbs(binary: Uint8Array): number[] {
-    const decompressed = gunzipSync(binary);
-    if (decompressed.byteLength % 8 !== 0) {
+    const isGzip = binary.length >= 3 && binary[0] === 0x1f && binary[1] === 0x8b && binary[2] === 0x08;
+    const decompressed = isGzip ? gunzipSync(binary) : binary;
+    if (decompressed.byteLength === 0 || decompressed.byteLength % 8 !== 0) {
         throw new Error("INVALID_PROBABILITY_BINARY_SIZE");
     }
     const view = new DataView(decompressed.buffer, decompressed.byteOffset, decompressed.byteLength);
     const probabilities = new Array<number>(decompressed.byteLength / 8);
+    let sum = 0;
     for (let i = 0; i < probabilities.length; i++) {
-        probabilities[i] = view.getFloat64(i * 8, true);
+        const probability = view.getFloat64(i * 8, true);
+        if (!Number.isFinite(probability) || probability < 0 || probability > 1) {throw new Error("INVALID_PROBABILITY_VALUE");}
+        probabilities[i] = probability;
+        sum += probability;
     }
+    if (Math.abs(sum - 1) > 1e-5) {throw new Error(`INVALID_PROBABILITY_SUM: ${sum}`);}
     return probabilities;
 }
 
