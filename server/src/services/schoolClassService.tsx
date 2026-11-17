@@ -555,6 +555,7 @@ export const getTestDetailsService = async (testId: number, teacherId: number) =
                 totalQuestions: answer.questionIds.length,
                 feedbackCompleted: getFeedbackCompleted(student.id),
                 finished: answer.quizFinished,
+                maxProb: answer.maxProb
             };
         }));
     return {

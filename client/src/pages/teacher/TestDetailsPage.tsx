@@ -185,6 +185,14 @@ const TestDetailsPage = () => {
                                                     </Box>
                                                 </>
                                             )}
+
+                                            {details.mode === "ADAPTIV" && (
+                                                <>
+                                                    <Box component="th" sx={{ textAlign: "center", p: 1.5 }}>
+                                                        Wahrscheinlichkeit
+                                                    </Box>
+                                                </>
+                                            )}
                                             <Box component="th" sx={{textAlign: "right", p: 1.5,}}>
                                                 Status
                                             </Box>
@@ -246,6 +254,15 @@ const TestDetailsPage = () => {
                                                         </Box>
                                                     </>
                                                 )}
+
+                                                {details.mode === "ADAPTIV" && (
+                                                    <Box component="td" sx={{p: 1.5, textAlign: "center"}}>
+                                                    <Typography>
+                                                            {student.maxProb?.toFixed(4) ?? "–"} %
+                                                        </Typography>
+                                                    </Box>
+                                                )}
+
                                                 <Box component="td" sx={{p: 1.5, textAlign: "right",}}>
                                                     <Chip
                                                         size="small"

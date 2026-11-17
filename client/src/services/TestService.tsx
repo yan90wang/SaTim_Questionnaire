@@ -33,6 +33,7 @@ export interface StudentTestResult {
     openQuestions?: number;
     skippedQuestions?: number;
     feedbackCompleted?: boolean | null;
+    maxProb: number;
 }
 
 export interface QuestionTestResult {

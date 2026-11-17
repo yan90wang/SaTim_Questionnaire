@@ -526,6 +526,12 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
             }
             bayesianResult = bayesianUpdate(probs, ks, beta, eta, itemIndex, result);
         }
+        let maxProb = 0;
+        for (const prob of bayesianResult) {
+            if (prob > maxProb) {
+                maxProb = prob;
+            }
+        }
         await prisma.adaptiveAnswer.update({
             where: {
                 id: adaptiveAnswer.id,
@@ -533,6 +539,7 @@ export async function submitQuizAnswer(userId: string, questionId: number, insta
             data: {
                 adaptiveProbsBinary: probsToBinary(bayesianResult),
                 adaptiveProbs: Prisma.DbNull,
+                maxProb: maxProb
             },
             select: {
                 id: true,

@@ -209,6 +209,7 @@ model adaptiveAnswer {
   quizFinished      Boolean          @default(false)
 
   adaptiveProbsBinary Bytes?
+  maxProb             Float?
   adaptiveProbs       Json?
   knowledgeSpace      Json?
   itemColumns         Int[]
