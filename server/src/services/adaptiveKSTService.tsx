@@ -144,7 +144,7 @@ export function halfsplitBinary(binaryKS: Uint8Array, probs: number[], numberOfS
  * 1 = correct
  * 0 = incorrect
  */
-export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemValue, eta: PerItemValue, item: number, response:  0 | 1): number[] {
+export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemValue, eta: PerItemValue, item: number, response:  0 | 1 , weight: number = 1): number[] {
     validateKs(ks);
     const numberOfStates = ks.length;
     const firstRow = ks[0];
@@ -171,8 +171,7 @@ export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemVal
     }
 
     if (response !== 0 && response !== 1) {
-        throw new Error("response must be 0 or 1."
-       );
+        throw new Error("response must be 0 or 1.");
     }
 
     if (item < 0 || item >= numberOfItems) {
@@ -188,10 +187,12 @@ export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemVal
         up = betaVector[q]!;
         um = 1 - etaVector[q]!;
     }
+    const weightedUp = Math.pow(up, weight);
+    const weightedUm = Math.pow(um, weight);
     const posterior: number[] = new Array(numberOfStates);
     for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
         const containsQuestion = ks[stateIndex]![q]! === 1;
-        const likelihood = containsQuestion ? up : um;
+        const likelihood = containsQuestion ? weightedUp : weightedUm;
         posterior[stateIndex] = likelihood * probs[stateIndex]!;
     }
     const total = posterior.reduce((sum, value) => sum + value, 0);
@@ -201,7 +202,7 @@ export function bayesianUpdate(probs: number[], ks: number[][], beta: PerItemVal
     return posterior.map(value => value / total);
 }
 
-export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numberOfStates: number, numberOfItems: number, beta: PerItemValue, eta: PerItemValue, item: number, response: 0 | 1): number[] {
+export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numberOfStates: number, numberOfItems: number, beta: PerItemValue, eta: PerItemValue, item: number, response: 0 | 1, weight: number = 1): number[] {
     const wordsPerState = Math.ceil(numberOfItems / 32);
     const bytesPerState = wordsPerState * 4;
 
@@ -216,22 +217,16 @@ export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numb
     if (response !== 0 && response !== 1) {
         throw new Error("response must be 0 or 1.");
     }
-
     const betaVector = broadcastPerItem(beta, numberOfItems);
     const etaVector = broadcastPerItem(eta, numberOfItems);
-
     for (let i = 0; i < numberOfItems; i++) {
         const b = betaVector[i]!;
         const e = etaVector[i]!;
-
         if (!Number.isFinite(b) || !Number.isFinite(e) || b < 0 || b > 1 || e < 0 || e > 1) {
             throw new Error("beta and eta entries must lie in [0, 1].");
         }
-
         if (b + e > 1) {
-            console.warn(
-                `beta[${i}] + eta[${i}] should be less than 1.`
-            );
+            console.warn(`beta[${i}] + eta[${i}] should be less than 1.`);
         }
     }
     const b = betaVector[item]!;
@@ -240,6 +235,9 @@ export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numb
     const up = response === 1 ? 1 - b : b;
     const um = response === 1 ? e : 1 - e;
 
+    const weightedUp = Math.pow(up, weight);
+    const weightedUm = Math.pow(um, weight);
+
     const wordIndex = Math.floor(item / 32);
     const bitIndex = item % 32;
     const bitMask = (1 << bitIndex) >>> 0;
@@ -247,17 +245,11 @@ export function bayesianUpdateBinary(binaryKS: Uint8Array, probs: number[], numb
     const posterior = new Array<number>(numberOfStates);
     let total = 0;
     for (let stateIndex = 0; stateIndex < numberOfStates; stateIndex++) {
-        const offset =
-            stateIndex * bytesPerState +
-            wordIndex * 4;
-
+        const offset = stateIndex * bytesPerState + wordIndex * 4;
         const word = view.getUint32(offset, true);
-
         const containsQuestion = (word & bitMask) !== 0;
-        const likelihood = containsQuestion ? up : um;
-
+        const likelihood = containsQuestion ? weightedUp : weightedUm;
         const value = likelihood * probs[stateIndex]!;
-
         posterior[stateIndex] = value;
         total += value;
     }

@@ -146,6 +146,7 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
         const reusedQuestionIds: number[] = [];
         if (reusableAnswers.length !== 0) {
             const { beta, eta } = await fetchBetaEta(survey.betaEtaFileUrl, itemColumns);
+
             for (const previousAnswer of reusableAnswers) {
                 const itemIndex = itemColumns.indexOf(previousAnswer.questionId);
                 if (itemIndex < 0) {continue;}
@@ -157,9 +158,9 @@ const getAdaptiveQuiz = async (survey: survey, instance: surveyInstance, userId:
                 }
                 const result: 0 | 1 = evaluation.score.length > 0 && evaluation.score.every(score => score === 1) ? 1 : 0;
                 if (useBinaryKS && binaryKS) {
-                    updatedProbs = bayesianUpdateBinary(binaryKS, updatedProbs, numberOfStates, numberOfItems, beta, eta, itemIndex, result);
+                    updatedProbs = bayesianUpdateBinary(binaryKS, updatedProbs, numberOfStates, numberOfItems, beta, eta, itemIndex, result, 0.7);
                 } else if (ks) {
-                    updatedProbs = bayesianUpdate(updatedProbs, ks, beta, eta, itemIndex, result);
+                    updatedProbs = bayesianUpdate(updatedProbs, ks, beta, eta, itemIndex, result, 0.7);
                 } else {
                     throw new Error("KNOWLEDGE_SPACE_NOT_FOUND_LOOP");
                 }
